@@ -1,0 +1,33 @@
+[package]
+name = "rabbitmq-async-example"
+version = "0.9.0"
+edition = "2024"
+
+[dependencies]
+lapin = "3.7.0"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+chrono = { version = "0.4" , features = ["serde"] }
+dotenvy = "0.15.7"
+async-trait = "0.1.89"
+serde = { version = "1.0.227" }
+serde_json = { version = "1.0.145" }
+derivative = { version = "2.2.0" }
+uuid = { version = "1.18", features = ["v4"] }
+validator = { version = "0.19", features = ["derive"] }
+sqlx = { version = "0.8", features = [ "runtime-tokio", "postgres", "derive", "chrono", "uuid" ] }
+log = "0.4"
+env_logger = "0.11.8"
+
+[[bin]]
+path = "src/bin/main.rs"
+name = "rabbitmq-async-example"
+
+[profile.dev]
+codegen-units = 16  # Increase parallel compilation
+incremental = true   # Enable incremental compilation
+
+[build]
+jobs = 2
+rustc-wrapper = "sccache"
+rustc = "rustc"
