@@ -4,7 +4,10 @@ use log::{info, warn};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid as Uuidv4;
 
-use crate::{database::models::services::Services, mapping::schemas::ServiceResponse};
+use crate::{
+    database::models::services::Services,
+    mapping::schemas::{MappedError, Request, ServiceResponse},
+};
 
 pub async fn get_service_info(
     service_id: &i32,
@@ -46,6 +49,78 @@ pub async fn save_service_response(
         }
         Err(msg) => {
             warn!("Response not saved in database with error: {msg}");
+            Ok(false)
+        }
+    }
+}
+
+pub async fn save_to_fail_table(
+    mapped_error: &MappedError,
+    connection: &Pool<Postgres>,
+) -> Result<bool, String> {
+    let data_as_json = serde_json::json!(mapped_error.data);
+    let result_query = sqlx::query(
+        "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",)
+        .bind(Uuidv4::from_str(&mapped_error.application_id).unwrap())
+        .bind(Uuidv4::from_str(&mapped_error.serhub_request_id).unwrap())
+        .bind(mapped_error.system_id)
+        .bind(mapped_error.service_id)
+        .bind(&mapped_error.error_type)
+        .bind(&mapped_error.error_message)
+        .bind(&mapped_error.error_traceback)
+        .bind(&data_as_json).execute(connection).await;
+    match result_query {
+        Ok(_) => {
+            info!("Fail data saved in database");
+            Ok(true)
+        }
+        Err(msg) => {
+            warn!("Fail data not saved in database with error: {msg}");
+            Ok(false)
+        }
+    }
+}
+
+pub async fn check_application_response(
+    serhub_request_id: &str,
+    connection: &Pool<Postgres>,
+) -> Result<bool, String> {
+    let result_query: Result<bool, _> = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM application_responses WHERE serhub_request_id = $1)",
+    )
+    .bind(Uuidv4::from_str(serhub_request_id).unwrap())
+    .fetch_one(connection)
+    .await;
+    match result_query {
+        Ok(result) => Ok(result),
+        Err(msg) => {
+            warn!("Failed to check existing query in database with error: {msg}");
+            Ok(false)
+        }
+    }
+}
+
+pub async fn save_response_with_request(
+    request: &Request,
+    connection: &Pool<Postgres>,
+) -> Result<bool, String> {
+    let result_query = sqlx::query(
+        "INSERT INTO service_responses (application_id, serhub_request_id, system_id, service_id, is_cache)
+        VALUES ($1, $2, $3, $4, $5)",
+    ).bind(Uuidv4::from_str(&request.application.application_id).unwrap())
+    .bind(Uuidv4::from_str(&request.service_info.serhub_request_id).unwrap())
+    .bind(request.application.system_id)
+    .bind(request.application.service_id)
+    .bind(false)
+    .execute(connection).await;
+    match result_query {
+        Ok(_) => {
+            info!("Inserted a timeout response!");
+            Ok(true)
+        }
+        Err(_) => {
+            info!("timeout response is not inserted!");
             Ok(false)
         }
     }

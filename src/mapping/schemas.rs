@@ -163,9 +163,17 @@ impl Request {
         Self {
             application: base_request.application,
             person: base_request.person,
-            service_info: service_info,
+            service_info,
             target: base_request.target,
         }
+    }
+}
+
+impl TryFrom<Vec<u8>> for Request {
+    type Error = String;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&value)
+            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
     }
 }
 
@@ -188,6 +196,26 @@ pub struct ServiceResponse {
 }
 
 impl TryFrom<Vec<u8>> for ServiceResponse {
+    type Error = String;
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        serde_json::from_slice(&value)
+            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MappedError {
+    pub application_id: String,
+    pub serhub_request_id: String,
+    pub service_id: i32,
+    pub system_id: i32,
+    pub error_type: Option<String>,
+    pub error_message: Option<String>,
+    pub error_traceback: Option<String>,
+    pub data: Option<AnyJsonValue>,
+}
+
+impl TryFrom<Vec<u8>> for MappedError {
     type Error = String;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         serde_json::from_slice(&value)

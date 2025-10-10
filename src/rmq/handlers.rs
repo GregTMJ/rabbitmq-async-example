@@ -65,8 +65,8 @@ impl RmqConnectionBuilder {
     }
 }
 
-pub async fn bind_consumer<'a, 'b>(
-    channel: &'b Arc<Channel>,
+pub async fn bind_consumer<'a>(
+    channel: &Arc<Channel>,
     exchange: &'a Exchange<'a>,
     queue: &'a Queue<'a>,
 ) -> Result<(), RmqError> {

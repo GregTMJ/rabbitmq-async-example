@@ -1,6 +1,11 @@
 use dotenvy::dotenv;
+use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::env;
+
+lazy_static! {
+    pub static ref PROJECT_CONFIG: Config = Config::from_env();
+}
 
 #[allow(non_snake_case)]
 #[derive(Debug, Default, Deserialize)]
@@ -20,6 +25,7 @@ pub struct Config {
     pub RMQ_TIMEOUT_QUEUE: String,
     pub RMQ_DELAYED_EXCHANGE: String,
     pub RMQ_SERVICE_RESPONSE_QUEUE: String,
+    pub RMQ_FAIL_TABLE_QUEUE: String,
 
     pub RMQ_EXCHANGE: String,
     pub RMQ_EXCHANGE_TYPE: String,
@@ -31,6 +37,10 @@ pub struct Config {
     POSTGRES_PASSWORD: String,
     POSTGRES_USER: String,
     pub POSTGRES_POOL_SIZE: u8,
+
+    // Project configs
+    pub AVAILABLE_SERVICES: String,
+    pub AVAILABLE_SYSTEMS: String,
 }
 
 impl Config {
@@ -57,6 +67,24 @@ impl Config {
         )
     }
 
+    pub fn get_available_systems(&self) -> Vec<i32> {
+        self.AVAILABLE_SYSTEMS
+            .split(",")
+            .filter(|val| !val.is_empty())
+            .map(str::trim)
+            .map(|val| val.parse::<i32>().unwrap())
+            .collect()
+    }
+
+    pub fn get_available_services(&self) -> Vec<i32> {
+        self.AVAILABLE_SERVICES
+            .split(",")
+            .filter(|val| !val.is_empty())
+            .map(str::trim)
+            .map(|val| val.parse::<i32>().unwrap())
+            .collect()
+    }
+
     pub fn from_env() -> Self {
         dotenv().ok();
         Self {
@@ -78,6 +106,8 @@ impl Config {
                 .unwrap_or("timeout_requests".to_owned()),
             RMQ_SERVICE_RESPONSE_QUEUE: env::var("RMQ_SERVICE_RESPONSE_QUEUE")
                 .unwrap_or("servicehub.q.service_response".to_owned()),
+            RMQ_FAIL_TABLE_QUEUE: env::var("RMQ_FAIL_TABLE_QUEUE")
+                .unwrap_or("servicehub.q.fail_table".to_owned()),
 
             RMQ_DELAYED_EXCHANGE: env::var("RMQ_DELAYED_EXCHANGE")
                 .unwrap_or("delayed_exchange".to_owned()),
@@ -97,6 +127,9 @@ impl Config {
                 .unwrap_or("5".to_string())
                 .parse::<u8>()
                 .expect("pool size must be integer"),
+
+            AVAILABLE_SERVICES: env::var("AVAILABLE_SERVICES").unwrap_or_default(),
+            AVAILABLE_SYSTEMS: env::var("AVAILABLE_SYSTEMS").unwrap_or_default(),
         }
     }
 }
