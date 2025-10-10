@@ -1,4 +1,4 @@
-use lapin::Error;
+use lapin::{Error, ErrorKind};
 use log::info;
 use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
@@ -30,7 +30,8 @@ async fn main() -> Result<(), Error> {
         .rmq_url(PROJECT_CONFIG.get_rmq_url())
         .sql_pool(pool)
         .build()
-        .await?;
+        .await
+        .map_err(|_| Error::from(ErrorKind::NoConfiguredExecutor))?;
 
     let _ = tokio::join!(
         start_consumer(

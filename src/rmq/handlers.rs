@@ -13,6 +13,7 @@ use lapin::{Channel, Connection, ConnectionProperties, Error as RmqError};
 use log::{error, info};
 use sqlx::{Pool, Postgres};
 
+use crate::errors::CustomProjectErrors;
 use crate::mapping::schemas::{Exchange, Queue};
 
 #[derive(Debug)]
@@ -42,20 +43,27 @@ impl RmqConnectionBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<RmqConnection, RmqError> {
+    pub async fn build(self) -> Result<RmqConnection, CustomProjectErrors> {
         let rmq_url = self
             .rmq_url
-            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))?;
+            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))
+            .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
         let sql_connection_pool = self
             .sql_connection_pool
-            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))?;
+            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))
+            .map_err(|msg| CustomProjectErrors::DatabaseConnectionError(msg.to_string()))?;
 
         info!("Starting RMQ connection");
-        let conn = Connection::connect(&rmq_url, ConnectionProperties::default()).await?;
+        let conn = Connection::connect(&rmq_url, ConnectionProperties::default())
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
         info!("RMQ Connection established");
 
         info!("Opening channel");
-        let channel = conn.create_channel().await?;
+        let channel = conn
+            .create_channel()
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQChannelCreationError(msg.to_string()))?;
         info!("RMQ channel ready to handle");
 
         Ok(RmqConnection {
@@ -69,7 +77,7 @@ pub async fn bind_consumer<'a>(
     channel: &Arc<Channel>,
     exchange: &'a Exchange<'a>,
     queue: &'a Queue<'a>,
-) -> Result<(), RmqError> {
+) -> Result<(), CustomProjectErrors> {
     info!("Binding queue to channel");
     channel
         .exchange_declare(
@@ -81,7 +89,8 @@ pub async fn bind_consumer<'a>(
             },
             FieldTable::default(),
         )
-        .await?;
+        .await
+        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
     channel
         .queue_declare(
             queue.name,
@@ -91,7 +100,8 @@ pub async fn bind_consumer<'a>(
             },
             FieldTable::default(),
         )
-        .await?;
+        .await
+        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
     channel
         .queue_bind(
             queue.name,
@@ -100,7 +110,8 @@ pub async fn bind_consumer<'a>(
             QueueBindOptions::default(),
             FieldTable::default(),
         )
-        .await?;
+        .await
+        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
     info!("Binding successful");
     Ok(())
 }
@@ -111,10 +122,10 @@ pub async fn start_consumer<F, Fut>(
     queue: Queue<'_>,
     callback: F,
     callback_name: &str,
-) -> Result<(), RmqError>
+) -> Result<(), CustomProjectErrors>
 where
     F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
-    Fut: Future<Output = Result<(), String>> + Send,
+    Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
 {
     let channel = Arc::clone(&rmq_connection.channel);
     let db_pool = Arc::clone(&rmq_connection.sql_connection_pool);
@@ -127,13 +138,15 @@ where
             BasicConsumeOptions::default(),
             FieldTable::default(),
         )
-        .await?;
+        .await
+        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
     while let Some(delivery) = consumer.next().await {
         match delivery {
             Ok(msg) => {
                 channel
                     .basic_ack(msg.delivery_tag, BasicAckOptions::default())
-                    .await?;
+                    .await
+                    .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
                 let result =
                     callback(msg.data, msg.properties, db_pool.clone(), channel.clone()).await;
                 if result.is_err() {

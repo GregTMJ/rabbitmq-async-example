@@ -7,6 +7,7 @@ use sqlx::types::{Json, Uuid};
 use validator::Validate;
 
 use crate::database::models::services::Services;
+use crate::errors::CustomProjectErrors;
 use crate::mapping::validators::{
     validate_incoming_service_id, validate_incoming_system_id, validate_not_empty,
 };
@@ -80,7 +81,7 @@ pub struct IncomingServiceInfo {
 }
 
 impl TryFrom<Services> for IncomingServiceInfo {
-    type Error = String;
+    type Error = CustomProjectErrors;
     fn try_from(value: Services) -> Result<Self, Self::Error> {
         Ok(Self {
             service_timeout: Some(value.timeout as u16),
@@ -107,7 +108,7 @@ pub struct ServiceInfo {
 }
 
 impl TryFrom<IncomingServiceInfo> for ServiceInfo {
-    type Error = String;
+    type Error = CustomProjectErrors;
     fn try_from(value: IncomingServiceInfo) -> Result<Self, Self::Error> {
         Ok(Self {
             timestamp_received: value.timestamp_received,
@@ -181,7 +182,7 @@ pub struct ServiceResponse {
 }
 
 impl TryFrom<&Request> for ServiceResponse {
-    type Error = String;
+    type Error = CustomProjectErrors;
     fn try_from(value: &Request) -> Result<Self, Self::Error> {
         Ok(Self {
             application_id: value.application.application_id.clone(),
@@ -210,7 +211,7 @@ pub struct MappedError {
 }
 
 impl TryFrom<&Request> for MappedError {
-    type Error = String;
+    type Error = CustomProjectErrors;
     fn try_from(value: &Request) -> Result<Self, Self::Error> {
         Ok(Self {
             application_id: value.application.application_id.clone(),
@@ -227,12 +228,12 @@ impl TryFrom<&Request> for MappedError {
 
 // Used to specify which structs can be deserialized from RabbitMQ messages.
 pub trait RMQDeserializer: DeserializeOwned {
-    fn from_rabbitmq_json<T>(value: Vec<u8>) -> Result<Self, String>
+    fn from_rabbitmq_json<T>(value: Vec<u8>) -> Result<Self, CustomProjectErrors>
     where
         T: DeserializeOwned,
     {
         serde_json::from_slice(&value)
-            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
+            .map_err(|e| CustomProjectErrors::IncomingSerializingMessageError(e.to_string()))
     }
 }
 impl RMQDeserializer for MappedError {}

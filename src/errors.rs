@@ -1,0 +1,24 @@
+use thiserror::Error;
+
+#[derive(Debug, Default, Error)]
+pub enum CustomProjectErrors {
+    #[error("Error while connecting to RMQ: {0}")]
+    RMQConnectionError(String),
+    #[error("Channel on create error: {0}")]
+    RMQChannelCreationError(String),
+    #[error("Channel method error: {0}")]
+    RMQChannelError(String),
+    #[error("Message publish error: {0}")]
+    RMQPublishError(String),
+    #[error("Model {0} validation error: {1}")]
+    ValidationError(String, String),
+    #[error("{0}")]
+    DatabaseConnectionError(String),
+    #[error("{0}")]
+    DatabaseOperationError(String),
+    #[error("Rmq message deserializing error: {0}")]
+    IncomingSerializingMessageError(String),
+    #[error("Unknown error")]
+    #[default]
+    Unknown,
+}

@@ -12,6 +12,7 @@ use crate::{
         },
         models::services::Services,
     },
+    errors::CustomProjectErrors,
     mapping::schemas::{
         BaseRequest, IncomingServiceInfo, MappedError, RMQDeserializer, Request, ServiceInfo,
         ServiceResponse,
@@ -27,12 +28,17 @@ pub async fn on_client_message(
     amq_properties: AMQPProperties,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     let incoming_request: BaseRequest =
         RMQDeserializer::from_rabbitmq_json::<BaseRequest>(incoming_message)?;
     match incoming_request.application.validate() {
         Ok(val) => val,
-        Err(msg) => return Err(msg.to_string()),
+        Err(msg) => {
+            return Err(CustomProjectErrors::ValidationError(
+                "BaseRequest".to_string(),
+                msg.to_string(),
+            ));
+        }
     };
     let database_service_info: Services =
         get_service_info(&incoming_request.application.service_id, &connection).await?;
@@ -41,7 +47,12 @@ pub async fn on_client_message(
     let service_info: ServiceInfo = ServiceInfo::try_from(base_service_info)?;
     match service_info.validate() {
         Ok(val) => val,
-        Err(msg) => return Err(msg.to_string()),
+        Err(msg) => {
+            return Err(CustomProjectErrors::ValidationError(
+                "ServiceInfo".to_owned(),
+                msg.to_string(),
+            ));
+        }
     }
     let request = Request::new(incoming_request, service_info);
     debug!("request to service body before sent: {request:?}");
@@ -66,24 +77,27 @@ pub async fn on_service_message(
     amq_properties: AMQPProperties,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_service_message");
     let incoming_response: ServiceResponse =
         RMQDeserializer::from_rabbitmq_json::<ServiceResponse>(incoming_message)?;
-    save_service_response(&incoming_response, &connection).await?;
-    send_message_to_client(
-        &channel,
-        &incoming_response,
-        amq_properties
-            .reply_to()
-            .as_ref()
-            .unwrap_or(&ShortString::from(String::new())),
-        amq_properties
-            .correlation_id()
-            .as_ref()
-            .unwrap_or(&ShortString::from(String::new())),
-    )
-    .await?;
+    let save_result = save_service_response(&incoming_response, &connection).await;
+    if save_result {
+        send_message_to_client(
+            &channel,
+            &incoming_response,
+            amq_properties
+                .reply_to()
+                .as_ref()
+                .unwrap_or(&ShortString::from(String::new())),
+            amq_properties
+                .correlation_id()
+                .as_ref()
+                .unwrap_or(&ShortString::from(String::new())),
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -92,11 +106,11 @@ pub async fn on_fail_message(
     _amq_properties: AMQPProperties,
     connection: Arc<Pool<Postgres>>,
     _channel: Arc<Channel>,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_fail_message");
     let incoming_error: MappedError =
         RMQDeserializer::from_rabbitmq_json::<MappedError>(incoming_message)?;
-    save_to_fail_table(&incoming_error, &connection).await?;
+    save_to_fail_table(&incoming_error, &connection).await;
     Ok(())
 }
 
@@ -105,7 +119,7 @@ pub async fn on_timeout_message(
     amq_properties: AMQPProperties,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_timeout_message");
     let incoming_request: Request =
         RMQDeserializer::from_rabbitmq_json::<Request>(incoming_message)?;
@@ -114,9 +128,8 @@ pub async fn on_timeout_message(
         &incoming_request.service_info.serhub_request_id,
         &connection,
     )
-    .await?;
-    let insert_incoming_request =
-        save_response_with_request(&incoming_request, &connection).await?;
+    .await;
+    let insert_incoming_request = save_response_with_request(&incoming_request, &connection).await;
 
     if !existing_application_response && insert_incoming_request {
         send_timeout_error_message(&channel, &incoming_request, &amq_properties).await?;

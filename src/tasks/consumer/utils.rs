@@ -1,5 +1,6 @@
 use crate::{
     configs::PROJECT_CONFIG,
+    errors::CustomProjectErrors,
     mapping::schemas::{Exchange, Request, ServiceResponse},
     tasks::producer::methods::send_message,
 };
@@ -11,7 +12,7 @@ pub async fn send_timeout_error_message(
     channel: &Channel,
     request: &Request,
     amq_properties: &AMQPProperties,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     let error_response = MappedError::try_from(request)?;
     let fail_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,
@@ -40,7 +41,7 @@ pub async fn send_timeout_error_service(
     channel: &Channel,
     request: &Request,
     amq_properties: &AMQPProperties,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     let service_response = ServiceResponse::try_from(request)?;
     let response_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,

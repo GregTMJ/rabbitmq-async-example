@@ -1,16 +1,19 @@
-use crate::mapping::schemas::{Exchange, Request, ServiceResponse};
+use crate::{
+    errors::CustomProjectErrors,
+    mapping::schemas::{Exchange, Request, ServiceResponse},
+};
 use lapin::Channel;
 use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
-use log::{info, warn};
+use log::info;
 
 pub async fn send_message_to_service(
     channel: &Channel,
     request: &Request,
     reply_to: &ShortString,
     correlation_id: &ShortString,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     let service_info = &request.service_info;
     let expiration = {
         let timestamp_now = service_info.timestamp_received;
@@ -41,7 +44,7 @@ pub async fn send_message_to_service(
             );
             Ok(())
         }
-        Err(msg) => Err(msg.to_string()),
+        Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
 }
 
@@ -50,7 +53,7 @@ pub async fn send_message_to_client<'a>(
     service_response: &ServiceResponse,
     reply_to: &'a ShortString,
     correlation_id: &'a ShortString,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     info!("Producing response to client");
     let expiration = 60 * 1000;
     let target_info = &service_response.target;
@@ -75,13 +78,10 @@ pub async fn send_message_to_client<'a>(
     {
         Ok(_) => {
             info!("Message sent");
+            Ok(())
         }
-        Err(msg) => {
-            let error_message = msg.to_string();
-            warn!("Message not sent {}", &error_message);
-        }
+        Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
-    Ok(())
 }
 
 pub async fn send_message<'a>(
@@ -91,7 +91,7 @@ pub async fn send_message<'a>(
     expiration: Option<f32>,
     correlation_id: &'a ShortString,
     reply_to: &'a ShortString,
-) -> Result<(), String> {
+) -> Result<(), CustomProjectErrors> {
     let expiration = expiration.unwrap_or(0.0) * 1000.0;
     let amq_properties = AMQPProperties::default()
         .with_content_encoding("utf-8".into())
@@ -109,8 +109,10 @@ pub async fn send_message<'a>(
         )
         .await
     {
-        Ok(_) => info!("message sent"),
-        Err(msg) => warn!("Message not sent due to {msg}"),
+        Ok(_) => {
+            info!("message sent");
+            Ok(())
+        }
+        Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
-    Ok(())
 }

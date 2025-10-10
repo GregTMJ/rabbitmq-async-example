@@ -1,6 +1,6 @@
 [package]
 name = "rabbitmq-async-example"
-version = "0.9.9"
+version = "0.9.11"
 edition = "2024"
 
 [dependencies]
@@ -19,6 +19,7 @@ validator = { version = "0.19", features = ["derive"] }
 sqlx = { version = "0.8", features = [ "runtime-tokio", "postgres", "derive", "chrono", "uuid" ] }
 log = "0.4"
 env_logger = "0.11.8"
+thiserror = "2"
 
 [[bin]]
 path = "src/bin/main.rs"
