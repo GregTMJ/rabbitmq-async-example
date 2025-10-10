@@ -127,7 +127,7 @@ impl TryFrom<IncomingServiceInfo> for ServiceInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct RmqTarget {
     pub vhost: String,
     pub exchange: String,
@@ -180,6 +180,23 @@ pub struct ServiceResponse {
     pub target: RmqTarget,
 }
 
+impl TryFrom<&Request> for ServiceResponse {
+    type Error = String;
+    fn try_from(value: &Request) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_id: value.application.application_id.clone(),
+            serhub_request_id: value.service_info.serhub_request_id.clone(),
+            service_id: value.application.service_id,
+            system_id: value.application.system_id,
+            is_cache: false,
+            status: "ServiceTimeout".to_owned(),
+            status_description: vec!["service_timeout".to_owned()],
+            target: value.target.clone(),
+            ..Default::default()
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MappedError {
     pub application_id: String,
@@ -192,8 +209,32 @@ pub struct MappedError {
     pub data: Option<AnyJsonValue>,
 }
 
+impl TryFrom<&Request> for MappedError {
+    type Error = String;
+    fn try_from(value: &Request) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_id: value.application.application_id.clone(),
+            serhub_request_id: value.service_info.serhub_request_id.clone(),
+            service_id: value.application.service_id,
+            system_id: value.application.service_id,
+            error_type: Some("Service".to_owned()),
+            error_message: Some("ServiceTimeout".to_owned()),
+            error_traceback: None,
+            data: None,
+        })
+    }
+}
+
 // Used to specify which structs can be deserialized from RabbitMQ messages.
-pub trait RMQDeserializer: DeserializeOwned {}
+pub trait RMQDeserializer: DeserializeOwned {
+    fn from_rabbitmq_json<T>(value: Vec<u8>) -> Result<Self, String>
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_slice(&value)
+            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
+    }
+}
 impl RMQDeserializer for MappedError {}
 impl RMQDeserializer for BaseRequest {}
 impl RMQDeserializer for Request {}
