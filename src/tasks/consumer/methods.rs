@@ -1,6 +1,5 @@
 use lapin::{Channel, protocol::basic::AMQPProperties, types::ShortString};
 use log::{debug, info};
-use serde_json::from_slice;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use validator::Validate;
@@ -14,6 +13,7 @@ use crate::{
         },
         models::services::Services,
     },
+    mapping::from_json_slice,
     mapping::schemas::{
         BaseRequest, Exchange, IncomingServiceInfo, MappedError, Request, ServiceInfo,
         ServiceResponse,
@@ -27,10 +27,7 @@ pub async fn on_client_message(
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), String> {
-    let message = String::from_utf8(incoming_message.clone()).unwrap();
-    debug!("Got the following message {message}");
-    let incoming_request: BaseRequest =
-        from_slice(&incoming_message).map_err(|e| format!("Couldn't struct with error {e}"))?;
+    let incoming_request: BaseRequest = from_json_slice(incoming_message)?;
     match incoming_request.application.validate() {
         Ok(val) => val,
         Err(msg) => return Err(msg.to_string()),
@@ -69,7 +66,7 @@ pub async fn on_service_message(
     channel: Arc<Channel>,
 ) -> Result<(), String> {
     info!("Incoming data for on_service_message");
-    let incoming_response = ServiceResponse::try_from(incoming_message)?;
+    let incoming_response: ServiceResponse = from_json_slice(incoming_message)?;
     save_service_response(&incoming_response, &connection).await?;
     send_message_to_client(
         &channel,
@@ -94,7 +91,7 @@ pub async fn on_fail_message(
     _channel: Arc<Channel>,
 ) -> Result<(), String> {
     info!("Incoming data for on_fail_message");
-    let incoming_error = MappedError::try_from(incoming_message)?;
+    let incoming_error: MappedError = from_json_slice(incoming_message)?;
     save_to_fail_table(&incoming_error, &connection).await?;
     Ok(())
 }
@@ -106,7 +103,7 @@ pub async fn on_timeout_message(
     channel: Arc<Channel>,
 ) -> Result<(), String> {
     info!("Incoming data for on_timeout_message");
-    let incoming_request = Request::try_from(incoming_message)?;
+    let incoming_request: Request = from_json_slice(incoming_message)?;
 
     let existing_application_response = check_application_response(
         &incoming_request.service_info.serhub_request_id,

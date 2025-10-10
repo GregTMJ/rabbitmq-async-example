@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use derivative::Derivative;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as AnyJsonValue;
 use sqlx::types::{Json, Uuid};
@@ -142,14 +143,6 @@ pub struct BaseRequest {
     pub target: RmqTarget,
 }
 
-impl TryFrom<Vec<u8>> for BaseRequest {
-    type Error = String;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&value)
-            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
     pub application: Application,
@@ -166,14 +159,6 @@ impl Request {
             service_info,
             target: base_request.target,
         }
-    }
-}
-
-impl TryFrom<Vec<u8>> for Request {
-    type Error = String;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&value)
-            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
     }
 }
 
@@ -195,14 +180,6 @@ pub struct ServiceResponse {
     pub target: RmqTarget,
 }
 
-impl TryFrom<Vec<u8>> for ServiceResponse {
-    type Error = String;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&value)
-            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MappedError {
     pub application_id: String,
@@ -215,10 +192,9 @@ pub struct MappedError {
     pub data: Option<AnyJsonValue>,
 }
 
-impl TryFrom<Vec<u8>> for MappedError {
-    type Error = String;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        serde_json::from_slice(&value)
-            .map_err(|e| format!("Got an error while trying to deserialize: {e}"))
-    }
-}
+// Used to specify which structs can be deserialized from RabbitMQ messages.
+pub trait RMQDeserializer: DeserializeOwned {}
+impl RMQDeserializer for MappedError {}
+impl RMQDeserializer for BaseRequest {}
+impl RMQDeserializer for Request {}
+impl RMQDeserializer for ServiceResponse {}
