@@ -88,15 +88,14 @@ pub async fn send_message<'a>(
     body: &'a [u8],
     exchange: &'a Exchange<'_>,
     expiration: Option<f32>,
-    correlation_id: &'a ShortString,
-    reply_to: &'a ShortString,
+    correlation_id: ShortString,
+    reply_to: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let expiration = expiration.unwrap_or(0.0) * 1000.0;
     let amq_properties = AMQPProperties::default()
-        .with_content_encoding("utf-8".into())
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id.clone())
-        .with_reply_to(reply_to.clone())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into());
     match channel
         .basic_publish(

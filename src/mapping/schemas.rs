@@ -109,6 +109,12 @@ pub struct RmqTarget {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ByPassRequest {
+    pub application: Application,
+    pub target: RmqTarget,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BaseRequest {
     pub application: Application,
     pub person: AnyJsonValue,
@@ -208,7 +214,8 @@ pub trait RMQDeserializer: DeserializeOwned {
             .map_err(|e| CustomProjectErrors::IncomingSerializingMessageError(e.to_string()))
     }
 }
-impl RMQDeserializer for MappedError {}
+impl RMQDeserializer for ByPassRequest {}
 impl RMQDeserializer for BaseRequest {}
 impl RMQDeserializer for Request {}
 impl RMQDeserializer for ServiceResponse {}
+impl RMQDeserializer for MappedError {}
