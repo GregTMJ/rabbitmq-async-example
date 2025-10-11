@@ -38,11 +38,11 @@ async fn main() -> Result<(), Error> {
             &rmq_connection,
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_REQUEST_QUEUE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_REQUEST_QUEUE
+                name: &PROJECT_CONFIG.RMQ_REQUEST_QUEUE,
+                routing_key: &PROJECT_CONFIG.RMQ_REQUEST_QUEUE,
             },
             on_client_message,
             "on_client_message",
@@ -51,11 +51,11 @@ async fn main() -> Result<(), Error> {
             &rmq_connection,
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE
+                name: &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
+                routing_key: &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
             },
             on_service_message,
             "on_service_message"
@@ -64,11 +64,11 @@ async fn main() -> Result<(), Error> {
             &rmq_connection,
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE
+                name: &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
+                routing_key: &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
             },
             on_fail_message,
             "on_fail_message"
@@ -77,11 +77,11 @@ async fn main() -> Result<(), Error> {
             &rmq_connection,
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE
+                name: &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
+                routing_key: &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
             },
             on_timeout_message,
             "on_timeout_message",

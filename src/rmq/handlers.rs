@@ -106,7 +106,7 @@ pub async fn bind_consumer<'a>(
         .queue_bind(
             queue.name,
             exchange.name,
-            exchange.routing_key,
+            queue.routing_key,
             QueueBindOptions::default(),
             FieldTable::default(),
         )

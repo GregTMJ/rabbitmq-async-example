@@ -52,17 +52,16 @@ pub struct IncomingServiceInfo {
     pub routing_key: Option<String>,
 }
 
-impl TryFrom<Services> for IncomingServiceInfo {
-    type Error = CustomProjectErrors;
-    fn try_from(value: Services) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<Services> for IncomingServiceInfo {
+    fn from(value: Services) -> Self {
+        Self {
             service_timeout: Some(value.timeout as u16),
             cache_expiration: value.cache_expiration,
             cached_fields: value.cache_fields,
             routing_key: Some(value.routing_key),
             exchange: Some(value.exchange),
             ..Default::default()
-        })
+        }
     }
 }
 
@@ -79,10 +78,9 @@ pub struct ServiceInfo {
     pub routing_key: String,
 }
 
-impl TryFrom<IncomingServiceInfo> for ServiceInfo {
-    type Error = CustomProjectErrors;
-    fn try_from(value: IncomingServiceInfo) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<IncomingServiceInfo> for ServiceInfo {
+    fn from(value: IncomingServiceInfo) -> Self {
+        Self {
             timestamp_received: value.timestamp_received,
             service_timeout: value.service_timeout.unwrap_or_default(),
             serhub_request_id: value.serhub_request_id,
@@ -96,7 +94,7 @@ impl TryFrom<IncomingServiceInfo> for ServiceInfo {
             cache_expiration: value.cache_expiration,
             exchange: value.exchange.unwrap_or_default(),
             routing_key: value.routing_key.unwrap_or_default(),
-        })
+        }
     }
 }
 
@@ -188,10 +186,9 @@ pub struct MappedError {
     pub data: Option<AnyJsonValue>,
 }
 
-impl TryFrom<&Request> for MappedError {
-    type Error = CustomProjectErrors;
-    fn try_from(value: &Request) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<&Request> for MappedError {
+    fn from(value: &Request) -> Self {
+        Self {
             application_id: value.application.application_id.clone(),
             serhub_request_id: value.service_info.serhub_request_id.clone(),
             service_id: value.application.service_id,
@@ -200,7 +197,7 @@ impl TryFrom<&Request> for MappedError {
             error_message: Some("ServiceTimeout".to_owned()),
             error_traceback: None,
             data: None,
-        })
+        }
     }
 }
 

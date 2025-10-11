@@ -5,7 +5,7 @@ use lapin::{
 };
 use log::{debug, info};
 use sqlx::{Pool, Postgres};
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 use validator::Validate;
 
 use crate::{
@@ -38,9 +38,9 @@ pub async fn on_client_message(
 
     let database_service_info: Services =
         get_service_info(&request.application.service_id, &connection).await?;
-    let base_service_info = IncomingServiceInfo::try_from(database_service_info)?;
+    let base_service_info = IncomingServiceInfo::from(database_service_info);
     debug!("Got the following db info {base_service_info:?}");
-    let service_info: ServiceInfo = ServiceInfo::try_from(base_service_info)?;
+    let service_info: ServiceInfo = ServiceInfo::from(base_service_info);
     match service_info.validate() {
         Ok(val) => val,
         Err(msg) => {
@@ -56,43 +56,31 @@ pub async fn on_client_message(
     send_message_to_service(
         &channel,
         &request,
-        amq_properties
-            .reply_to()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        amq_properties
-            .correlation_id()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
+        amq_properties.reply_to().clone().unwrap_or_default(),
+        amq_properties.correlation_id().clone().unwrap_or_default(),
     )
     .await?;
     let timeout_exchange: Exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
     );
     let headers = {
-        let mut btree = BTreeMap::new();
+        let mut temp_header = FieldTable::default();
         let timeout = serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
-        btree.insert(
+        temp_header.insert(
             ShortString::from("x-delay"),
             AMQPValue::try_from(&timeout, lapin::types::AMQPType::Float).unwrap(),
         );
-        Some(FieldTable::from(btree))
+        temp_header
     };
     send_message(
         &channel,
         serde_json::to_string(&request).unwrap().as_bytes(),
         &timeout_exchange,
+        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
         None,
-        amq_properties
-            .correlation_id()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        amq_properties
-            .reply_to()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
+        amq_properties.correlation_id().clone().unwrap_or_default(),
+        amq_properties.reply_to().clone().unwrap_or_default(),
         headers,
     )
     .await?;
@@ -113,14 +101,8 @@ pub async fn on_service_message(
         send_message_to_client(
             &channel,
             &service_response,
-            amq_properties
-                .reply_to()
-                .clone()
-                .unwrap_or(ShortString::from(String::new())),
-            amq_properties
-                .correlation_id()
-                .clone()
-                .unwrap_or(ShortString::from(String::new())),
+            amq_properties.reply_to().clone().unwrap_or_default(),
+            amq_properties.correlation_id().clone().unwrap_or_default(),
         )
         .await?;
     }

@@ -5,7 +5,7 @@ use crate::{
     rmq::schemas::Exchange,
     tasks::producer::methods::{send_message, send_message_to_client},
 };
-use lapin::{Channel, protocol::basic::AMQPProperties, types::ShortString};
+use lapin::{Channel, protocol::basic::AMQPProperties, types::FieldTable};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -16,12 +16,14 @@ pub async fn get_request(
     payload: &[u8],
     amq_properties: &AMQPProperties,
 ) -> Result<BaseRequest, CustomProjectErrors> {
+    let status_description: Vec<String>;
+    let error_message: String;
+
     let base_request: ByPassRequest =
         RMQDeserializer::from_rabbitmq_json::<ByPassRequest>(payload.to_vec())?;
     let request: Result<BaseRequest, CustomProjectErrors> =
         RMQDeserializer::from_rabbitmq_json::<BaseRequest>(payload.to_vec());
-    let status_description: Vec<String>;
-    let error_message: String;
+
     match request {
         Ok(body) => match body.application.validate() {
             Ok(_) => return Ok(body),
@@ -49,14 +51,8 @@ pub async fn get_request(
     send_message_to_client(
         channel,
         &service_response,
-        amq_properties
-            .correlation_id()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        amq_properties
-            .reply_to()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
+        amq_properties.correlation_id().clone().unwrap_or_default(),
+        amq_properties.reply_to().clone().unwrap_or_default(),
     )
     .await?;
     Err(CustomProjectErrors::ValidationError(
@@ -70,26 +66,20 @@ pub async fn send_timeout_error_message(
     request: &Request,
     amq_properties: &AMQPProperties,
 ) -> Result<(), CustomProjectErrors> {
-    let error_response = MappedError::try_from(request)?;
+    let error_response = MappedError::from(request);
     let fail_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
     );
     send_message(
         channel,
         serde_json::to_string(&error_response).unwrap().as_bytes(),
         &fail_exchange,
+        &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
         None,
-        amq_properties
-            .correlation_id()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        amq_properties
-            .reply_to()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        None,
+        amq_properties.correlation_id().clone().unwrap_or_default(),
+        amq_properties.reply_to().clone().unwrap_or_default(),
+        FieldTable::default(),
     )
     .await?;
     Ok(())
@@ -103,23 +93,17 @@ pub async fn send_timeout_error_service(
     let service_response = ServiceResponse::try_from(request)?;
     let response_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
     );
     send_message(
         channel,
         serde_json::to_string(&service_response).unwrap().as_bytes(),
         &response_exchange,
+        &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
         None,
-        amq_properties
-            .correlation_id()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        amq_properties
-            .reply_to()
-            .clone()
-            .unwrap_or(ShortString::from(String::new())),
-        None,
+        amq_properties.correlation_id().clone().unwrap_or_default(),
+        amq_properties.reply_to().clone().unwrap_or_default(),
+        FieldTable::default(),
     )
     .await?;
     Ok(())
