@@ -40,7 +40,7 @@ pub struct Config {
 
     // Project configs
     pub AVAILABLE_SERVICES: String,
-    pub AVAILABLE_SYSTEMS: String,
+    pub AVAILABLE_USERS: String,
 }
 
 impl Config {
@@ -68,7 +68,7 @@ impl Config {
     }
 
     pub fn get_available_systems(&self) -> Vec<i32> {
-        self.AVAILABLE_SYSTEMS
+        self.AVAILABLE_USERS
             .split(",")
             .filter(|val| !val.is_empty())
             .map(str::trim)
@@ -129,7 +129,7 @@ impl Config {
                 .expect("pool size must be integer"),
 
             AVAILABLE_SERVICES: env::var("AVAILABLE_SERVICES").unwrap_or_default(),
-            AVAILABLE_SYSTEMS: env::var("AVAILABLE_SYSTEMS").unwrap_or_default(),
+            AVAILABLE_USERS: env::var("AVAILABLE_USERS").unwrap_or_default(),
         }
     }
 }
