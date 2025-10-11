@@ -24,6 +24,29 @@ pub async fn get_service_info(
     }
 }
 
+pub async fn save_client_request(request: &Request, connection: &Pool<Postgres>) -> bool {
+    let client_data = serde_json::json!(&request);
+    let request_query = sqlx::query(
+        "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data) 
+            VALUES ($1, $2, $3, $4, $5)",
+    )
+    .bind(Uuidv4::from_str(&request.application.application_id).unwrap())
+    .bind(Uuidv4::from_str(&request.service_info.serhub_request_id).unwrap())
+    .bind(request.application.system_id)
+    .bind(request.application.service_id)
+    .bind(client_data).execute(connection).await;
+    match request_query {
+        Ok(_) => {
+            info!("Client request saved into database!");
+            true
+        }
+        Err(msg) => {
+            warn!("Client request not saved into database: {msg}");
+            false
+        }
+    }
+}
+
 pub async fn save_service_response(
     service_response: &ServiceResponse,
     connection: &Pool<Postgres>,

@@ -89,6 +89,7 @@ pub async fn send_timeout_error_message(
             .reply_to()
             .clone()
             .unwrap_or(ShortString::from(String::new())),
+        None,
     )
     .await?;
     Ok(())
@@ -118,6 +119,7 @@ pub async fn send_timeout_error_service(
             .reply_to()
             .clone()
             .unwrap_or(ShortString::from(String::new())),
+        None,
     )
     .await?;
     Ok(())

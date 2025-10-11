@@ -1,14 +1,19 @@
-use lapin::{Channel, protocol::basic::AMQPProperties, types::ShortString};
+use lapin::{
+    Channel,
+    protocol::basic::AMQPProperties,
+    types::{AMQPValue, FieldTable, ShortString},
+};
 use log::{debug, info};
 use sqlx::{Pool, Postgres};
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use validator::Validate;
 
 use crate::{
+    configs::PROJECT_CONFIG,
     database::{
         functions::{
-            check_application_response, get_service_info, save_response_with_request,
-            save_service_response, save_to_fail_table,
+            check_application_response, get_service_info, save_client_request,
+            save_response_with_request, save_service_response, save_to_fail_table,
         },
         models::services::Services,
     },
@@ -16,9 +21,10 @@ use crate::{
     mapping::schemas::{
         IncomingServiceInfo, MappedError, RMQDeserializer, Request, ServiceInfo, ServiceResponse,
     },
+    rmq::schemas::Exchange,
     tasks::{
         consumer::utils::{get_request, send_timeout_error_message, send_timeout_error_service},
-        producer::methods::{send_message_to_client, send_message_to_service},
+        producer::methods::{send_message, send_message_to_client, send_message_to_service},
     },
 };
 
@@ -45,6 +51,7 @@ pub async fn on_client_message(
         }
     }
     let request = Request::new(request, service_info);
+    save_client_request(&request, &connection).await;
     debug!("request to service body before sent: {request:?}");
     send_message_to_service(
         &channel,
@@ -57,6 +64,36 @@ pub async fn on_client_message(
             .correlation_id()
             .clone()
             .unwrap_or(ShortString::from(String::new())),
+    )
+    .await?;
+    let timeout_exchange: Exchange = Exchange::new(
+        &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
+        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
+        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+    );
+    let headers = {
+        let mut btree = BTreeMap::new();
+        let timeout = serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
+        btree.insert(
+            ShortString::from("x-delay"),
+            AMQPValue::try_from(&timeout, lapin::types::AMQPType::Float).unwrap(),
+        );
+        Some(FieldTable::from(btree))
+    };
+    send_message(
+        &channel,
+        serde_json::to_string(&request).unwrap().as_bytes(),
+        &timeout_exchange,
+        None,
+        amq_properties
+            .correlation_id()
+            .clone()
+            .unwrap_or(ShortString::from(String::new())),
+        amq_properties
+            .reply_to()
+            .clone()
+            .unwrap_or(ShortString::from(String::new())),
+        headers,
     )
     .await?;
     Ok(())

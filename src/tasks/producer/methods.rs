@@ -3,10 +3,10 @@ use crate::{
     mapping::schemas::{Request, ServiceResponse},
     rmq::schemas::Exchange,
 };
-use lapin::Channel;
 use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
+use lapin::{Channel, types::FieldTable};
 use log::info;
 
 pub async fn send_message_to_service(
@@ -90,13 +90,15 @@ pub async fn send_message<'a>(
     expiration: Option<f32>,
     correlation_id: ShortString,
     reply_to: ShortString,
+    headers: Option<FieldTable>,
 ) -> Result<(), CustomProjectErrors> {
     let expiration = expiration.unwrap_or(0.0) * 1000.0;
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
         .with_correlation_id(correlation_id)
         .with_reply_to(reply_to)
-        .with_expiration(expiration.to_string().into());
+        .with_expiration(expiration.to_string().into())
+        .with_headers(headers.unwrap_or(FieldTable::default()));
     match channel
         .basic_publish(
             exchange.name,
