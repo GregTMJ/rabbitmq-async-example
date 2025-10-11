@@ -3,8 +3,8 @@ use log::info;
 use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
     database::{check_connection, get_connection_pool},
-    mapping::schemas::{Exchange, Queue},
     rmq::handlers::{RmqConnectionBuilder, start_consumer},
+    rmq::schemas::{Exchange, Queue},
     tasks::consumer::methods::{
         on_client_message, on_fail_message, on_service_message, on_timeout_message,
     },

@@ -14,7 +14,7 @@ use log::{error, info};
 use sqlx::{Pool, Postgres};
 
 use crate::errors::CustomProjectErrors;
-use crate::mapping::schemas::{Exchange, Queue};
+use crate::rmq::schemas::{Exchange, Queue};
 
 #[derive(Debug)]
 pub struct RmqConnection {

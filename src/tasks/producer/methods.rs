@@ -1,6 +1,7 @@
 use crate::{
     errors::CustomProjectErrors,
-    mapping::schemas::{Exchange, Request, ServiceResponse},
+    mapping::schemas::{Request, ServiceResponse},
+    rmq::schemas::Exchange,
 };
 use lapin::Channel;
 use lapin::options::BasicPublishOptions;
@@ -11,8 +12,8 @@ use log::info;
 pub async fn send_message_to_service(
     channel: &Channel,
     request: &Request,
-    reply_to: &ShortString,
-    correlation_id: &ShortString,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let service_info = &request.service_info;
     let expiration = {
@@ -22,10 +23,9 @@ pub async fn send_message_to_service(
             * 1000_f32
     };
     let amq_properties = AMQPProperties::default()
-        .with_content_encoding("utf-8".into())
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id.clone())
-        .with_reply_to(reply_to.clone())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into());
     match channel
         .basic_publish(
@@ -48,20 +48,19 @@ pub async fn send_message_to_service(
     }
 }
 
-pub async fn send_message_to_client<'a>(
+pub async fn send_message_to_client(
     channel: &Channel,
     service_response: &ServiceResponse,
-    reply_to: &'a ShortString,
-    correlation_id: &'a ShortString,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     info!("Producing response to client");
     let expiration = 60 * 1000;
     let target_info = &service_response.target;
     let amq_properties = AMQPProperties::default()
-        .with_content_encoding("utf-8".into())
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id.clone())
-        .with_reply_to(reply_to.clone())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into())
         .with_app_id(ShortString::from(
             service_response.application_id.to_owned(),

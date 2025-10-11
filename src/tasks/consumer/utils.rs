@@ -1,7 +1,8 @@
 use crate::{
     configs::PROJECT_CONFIG,
     errors::CustomProjectErrors,
-    mapping::schemas::{Exchange, Request, ServiceResponse},
+    mapping::schemas::{Request, ServiceResponse},
+    rmq::schemas::Exchange,
     tasks::producer::methods::send_message,
 };
 use lapin::{Channel, protocol::basic::AMQPProperties, types::ShortString};

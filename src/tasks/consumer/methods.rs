@@ -61,12 +61,12 @@ pub async fn on_client_message(
         &request,
         amq_properties
             .reply_to()
-            .as_ref()
-            .unwrap_or(&ShortString::from(String::new())),
+            .clone()
+            .unwrap_or(ShortString::from(String::new())),
         amq_properties
             .correlation_id()
-            .as_ref()
-            .unwrap_or(&ShortString::from(String::new())),
+            .clone()
+            .unwrap_or(ShortString::from(String::new())),
     )
     .await?;
     Ok(())
@@ -88,12 +88,12 @@ pub async fn on_service_message(
             &incoming_response,
             amq_properties
                 .reply_to()
-                .as_ref()
-                .unwrap_or(&ShortString::from(String::new())),
+                .clone()
+                .unwrap_or(ShortString::from(String::new())),
             amq_properties
                 .correlation_id()
-                .as_ref()
-                .unwrap_or(&ShortString::from(String::new())),
+                .clone()
+                .unwrap_or(ShortString::from(String::new())),
         )
         .await?;
     }
