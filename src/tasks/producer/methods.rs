@@ -1,3 +1,4 @@
+use crate::tasks::consumer::utils::send_publish_error_message;
 use crate::{
     errors::CustomProjectErrors,
     mapping::schemas::{Request, ServiceResponse},
@@ -8,10 +9,12 @@ use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
 use lapin::{Channel, types::FieldTable};
 use log::info;
+use sqlx::{Pool, Postgres};
 
 pub async fn send_message_to_service(
     channel: &Channel,
     request: &Request,
+    connection: &Pool<Postgres>,
     reply_to: ShortString,
     correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
@@ -27,25 +30,45 @@ pub async fn send_message_to_service(
         .with_correlation_id(correlation_id)
         .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into());
+
+    let error_message: CustomProjectErrors;
+
     match channel
         .basic_publish(
             &service_info.exchange,
             &service_info.routing_key,
             BasicPublishOptions::default(),
             serde_json::to_string(request).unwrap().as_bytes(),
-            amq_properties,
+            amq_properties.clone(),
         )
         .await
     {
-        Ok(_) => {
-            info!(
-                "Message sent to service with id: {}",
-                request.application.service_id
-            );
-            Ok(())
+        Ok(confirm) => match confirm.await {
+            Ok(_) => {
+                info!(
+                    "Message sent to service with id: {}",
+                    request.application.service_id
+                );
+                return Ok(());
+            }
+            Err(msg) => {
+                error_message = CustomProjectErrors::RMQPublishError(msg.to_string());
+            }
+        },
+        Err(msg) => {
+            error_message = CustomProjectErrors::RMQPublishError(msg.to_string());
         }
-        Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
-    }
+    };
+    send_publish_error_message(
+        request,
+        &error_message.to_string(),
+        channel,
+        connection,
+        amq_properties.correlation_id().clone().unwrap_or_default(),
+        amq_properties.reply_to().clone().unwrap_or_default(),
+    )
+    .await?;
+    Err(error_message)
 }
 
 pub async fn send_message_to_client(
@@ -75,10 +98,13 @@ pub async fn send_message_to_client(
         )
         .await
     {
-        Ok(_) => {
-            info!("Message sent");
-            Ok(())
-        }
+        Ok(confirm) => match confirm.await {
+            Ok(_) => {
+                info!("Message sent");
+                Ok(())
+            }
+            Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
+        },
         Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
 }
@@ -110,10 +136,13 @@ pub async fn send_message<'a>(
         )
         .await
     {
-        Ok(_) => {
-            info!("message sent");
-            Ok(())
-        }
+        Ok(confirm) => match confirm.await {
+            Ok(_) => {
+                info!("Message sent!");
+                Ok(())
+            }
+            Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
+        },
         Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
 }

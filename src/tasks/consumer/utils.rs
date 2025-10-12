@@ -1,11 +1,17 @@
 use crate::{
     configs::PROJECT_CONFIG,
+    database::functions::save_response_with_request,
     errors::CustomProjectErrors,
     mapping::schemas::{BaseRequest, ByPassRequest, RMQDeserializer, Request, ServiceResponse},
     rmq::schemas::Exchange,
     tasks::producer::methods::{send_message, send_message_to_client},
 };
-use lapin::{Channel, protocol::basic::AMQPProperties, types::FieldTable};
+use lapin::{
+    Channel,
+    protocol::basic::AMQPProperties,
+    types::{FieldTable, ShortString},
+};
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -66,7 +72,11 @@ pub async fn send_timeout_error_message(
     request: &Request,
     amq_properties: &AMQPProperties,
 ) -> Result<(), CustomProjectErrors> {
-    let error_response = MappedError::from(request);
+    let error_response = MappedError::generate_error_response(
+        request,
+        "Service".to_string(),
+        "ServiceTimeout".to_string(),
+    );
     let fail_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
@@ -90,7 +100,12 @@ pub async fn send_timeout_error_service(
     request: &Request,
     amq_properties: &AMQPProperties,
 ) -> Result<(), CustomProjectErrors> {
-    let service_response = ServiceResponse::try_from(request)?;
+    let service_response = ServiceResponse::generate_response(
+        request,
+        Some(false),
+        "ServiceTimeout".to_string(),
+        vec!["service_timeout".to_string()],
+    );
     let response_exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_EXCHANGE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
@@ -103,6 +118,41 @@ pub async fn send_timeout_error_service(
         None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
+        FieldTable::default(),
+    )
+    .await?;
+    Ok(())
+}
+
+pub async fn send_publish_error_message(
+    request: &Request,
+    error_message: &str,
+    channel: &Channel,
+    connection: &Pool<Postgres>,
+    correlation_id: ShortString,
+    reply_to: ShortString,
+) -> Result<(), CustomProjectErrors> {
+    let service_error_response = ServiceResponse::generate_response(
+        request,
+        Some(false),
+        "RMQPublishError".to_string(),
+        vec![error_message.to_string()],
+    );
+    let response_exchange = Exchange::new(
+        &PROJECT_CONFIG.RMQ_EXCHANGE,
+        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+    );
+    save_response_with_request(&request, &connection).await;
+    send_message(
+        channel,
+        serde_json::to_string(&service_error_response)
+            .unwrap()
+            .as_bytes(),
+        &response_exchange,
+        &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
+        None,
+        correlation_id,
+        reply_to,
         FieldTable::default(),
     )
     .await?;

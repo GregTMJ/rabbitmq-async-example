@@ -157,20 +157,24 @@ pub struct ServiceResponse {
     pub target: RmqTarget,
 }
 
-impl TryFrom<&Request> for ServiceResponse {
-    type Error = CustomProjectErrors;
-    fn try_from(value: &Request) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl ServiceResponse {
+    pub fn generate_response(
+        value: &Request,
+        is_cache: Option<bool>,
+        status: String,
+        status_description: Vec<String>,
+    ) -> Self {
+        Self {
             application_id: value.application.application_id.clone(),
             serhub_request_id: value.service_info.serhub_request_id.clone(),
             service_id: value.application.service_id,
             system_id: value.application.system_id,
-            is_cache: false,
-            status: "ServiceTimeout".to_owned(),
-            status_description: vec!["service_timeout".to_owned()],
+            is_cache: is_cache.unwrap_or_default(),
+            status,
+            status_description,
             target: value.target.clone(),
             ..Default::default()
-        })
+        }
     }
 }
 
@@ -186,15 +190,19 @@ pub struct MappedError {
     pub data: Option<AnyJsonValue>,
 }
 
-impl From<&Request> for MappedError {
-    fn from(value: &Request) -> Self {
+impl MappedError {
+    pub fn generate_error_response(
+        value: &Request,
+        error_message: String,
+        error_type: String,
+    ) -> Self {
         Self {
             application_id: value.application.application_id.clone(),
             serhub_request_id: value.service_info.serhub_request_id.clone(),
             service_id: value.application.service_id,
             system_id: value.application.service_id,
-            error_type: Some("Service".to_owned()),
-            error_message: Some("ServiceTimeout".to_owned()),
+            error_type: Some(error_type),
+            error_message: Some(error_message),
             error_traceback: None,
             data: None,
         }

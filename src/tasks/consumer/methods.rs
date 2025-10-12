@@ -56,6 +56,7 @@ pub async fn on_client_message(
     send_message_to_service(
         &channel,
         &request,
+        &connection,
         amq_properties.reply_to().clone().unwrap_or_default(),
         amq_properties.correlation_id().clone().unwrap_or_default(),
     )
