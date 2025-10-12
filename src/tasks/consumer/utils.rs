@@ -8,9 +8,11 @@ use crate::{
 };
 use lapin::{
     Channel,
+    options::ExchangeDeclareOptions,
     protocol::basic::AMQPProperties,
     types::{FieldTable, ShortString},
 };
+use log::info;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 use validator::Validate;
@@ -65,6 +67,30 @@ pub async fn get_request(
         "BaseRequest".to_string(),
         error_message,
     ))
+}
+
+pub async fn check_exchange_exists(
+    channel: &Channel,
+    exchange: &Exchange<'_>,
+) -> Result<(), CustomProjectErrors> {
+    match channel
+        .exchange_declare(
+            exchange.name,
+            exchange.exchange_type.clone(),
+            ExchangeDeclareOptions {
+                passive: true,
+                ..Default::default()
+            },
+            FieldTable::default(),
+        )
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            info!("Exchange error {err}");
+            Err(CustomProjectErrors::RMQPublishError(err.to_string()))
+        }
+    }
 }
 
 pub async fn send_timeout_error_message(

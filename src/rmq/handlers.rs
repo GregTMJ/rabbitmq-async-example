@@ -22,6 +22,102 @@ pub struct RmqConnection {
     pub sql_connection_pool: Arc<Pool<Postgres>>,
 }
 
+impl RmqConnection {
+    pub async fn bind_consumer<'a>(
+        &self,
+        exchange: &'a Exchange<'a>,
+        queue: &'a Queue<'a>,
+    ) -> Result<(), CustomProjectErrors> {
+        info!("Binding queue to channel");
+        self.channel
+            .exchange_declare(
+                exchange.name,
+                exchange.exchange_type.clone(),
+                ExchangeDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+        self.channel
+            .queue_declare(
+                queue.name,
+                QueueDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+        self.channel
+            .queue_bind(
+                queue.name,
+                exchange.name,
+                queue.routing_key,
+                QueueBindOptions::default(),
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+        info!("Binding successful");
+        Ok(())
+    }
+
+    pub async fn start_consumer<F, Fut>(
+        &self,
+        exchange: Exchange<'_>,
+        queue: Queue<'_>,
+        callback: F,
+        callback_name: &str,
+    ) -> Result<(), CustomProjectErrors>
+    where
+        F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
+        Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
+    {
+        self.bind_consumer(&exchange, &queue).await?;
+        info!("Starting consuming {callback_name}");
+        let mut consumer = self
+            .channel
+            .basic_consume(
+                queue.name,
+                callback_name,
+                BasicConsumeOptions::default(),
+                FieldTable::default(),
+            )
+            .await
+            .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+
+        let channel = Arc::clone(&self.channel);
+        while let Some(delivery) = consumer.next().await {
+            match delivery {
+                Ok(msg) => {
+                    channel
+                        .basic_ack(msg.delivery_tag, BasicAckOptions::default())
+                        .await
+                        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+                    let result = callback(
+                        msg.data,
+                        msg.properties,
+                        self.sql_connection_pool.clone(),
+                        channel.clone(),
+                    )
+                    .await;
+                    if result.is_err() {
+                        error!("Got an error while working with {callback_name}: {result:?}");
+                    }
+                }
+                Err(msg) => {
+                    error!("Got an rmq error {msg}")
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct RmqConnectionBuilder {
     rmq_url: Option<String>,
@@ -71,92 +167,4 @@ impl RmqConnectionBuilder {
             sql_connection_pool: Arc::new(sql_connection_pool),
         })
     }
-}
-
-pub async fn bind_consumer<'a>(
-    channel: &Arc<Channel>,
-    exchange: &'a Exchange<'a>,
-    queue: &'a Queue<'a>,
-) -> Result<(), CustomProjectErrors> {
-    info!("Binding queue to channel");
-    channel
-        .exchange_declare(
-            exchange.name,
-            exchange.exchange_type.clone(),
-            ExchangeDeclareOptions {
-                durable: true,
-                ..Default::default()
-            },
-            FieldTable::default(),
-        )
-        .await
-        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-    channel
-        .queue_declare(
-            queue.name,
-            QueueDeclareOptions {
-                durable: true,
-                ..Default::default()
-            },
-            FieldTable::default(),
-        )
-        .await
-        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-    channel
-        .queue_bind(
-            queue.name,
-            exchange.name,
-            queue.routing_key,
-            QueueBindOptions::default(),
-            FieldTable::default(),
-        )
-        .await
-        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-    info!("Binding successful");
-    Ok(())
-}
-
-pub async fn start_consumer<F, Fut>(
-    rmq_connection: &RmqConnection,
-    exchange: Exchange<'_>,
-    queue: Queue<'_>,
-    callback: F,
-    callback_name: &str,
-) -> Result<(), CustomProjectErrors>
-where
-    F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
-    Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
-{
-    let channel = Arc::clone(&rmq_connection.channel);
-    let db_pool = Arc::clone(&rmq_connection.sql_connection_pool);
-    bind_consumer(&channel, &exchange, &queue).await?;
-    info!("Starting consuming {callback_name}");
-    let mut consumer = channel
-        .basic_consume(
-            queue.name,
-            callback_name,
-            BasicConsumeOptions::default(),
-            FieldTable::default(),
-        )
-        .await
-        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-    while let Some(delivery) = consumer.next().await {
-        match delivery {
-            Ok(msg) => {
-                channel
-                    .basic_ack(msg.delivery_tag, BasicAckOptions::default())
-                    .await
-                    .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-                let result =
-                    callback(msg.data, msg.properties, db_pool.clone(), channel.clone()).await;
-                if result.is_err() {
-                    error!("Got an error while working with {callback_name}: {result:?}")
-                }
-            }
-            Err(msg) => {
-                error!("Got an rmq error {msg}")
-            }
-        }
-    }
-    Ok(())
 }

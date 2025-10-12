@@ -3,7 +3,7 @@ use log::info;
 use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
     database::{check_connection, get_connection_pool},
-    rmq::handlers::{RmqConnectionBuilder, start_consumer},
+    rmq::handlers::RmqConnectionBuilder,
     rmq::schemas::{Exchange, Queue},
     tasks::consumer::methods::{
         on_client_message, on_fail_message, on_service_message, on_timeout_message,
@@ -34,8 +34,7 @@ async fn main() -> Result<(), Error> {
         .map_err(|_| Error::from(ErrorKind::NoConfiguredExecutor))?;
 
     let _ = tokio::join!(
-        start_consumer(
-            &rmq_connection,
+        rmq_connection.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
@@ -47,8 +46,7 @@ async fn main() -> Result<(), Error> {
             on_client_message,
             "on_client_message",
         ),
-        start_consumer(
-            &rmq_connection,
+        rmq_connection.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
@@ -60,8 +58,7 @@ async fn main() -> Result<(), Error> {
             on_service_message,
             "on_service_message"
         ),
-        start_consumer(
-            &rmq_connection,
+        rmq_connection.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
@@ -73,8 +70,7 @@ async fn main() -> Result<(), Error> {
             on_fail_message,
             "on_fail_message"
         ),
-        start_consumer(
-            &rmq_connection,
+        rmq_connection.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.RMQ_EXCHANGE,
                 &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE

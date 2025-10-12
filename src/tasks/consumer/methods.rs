@@ -23,7 +23,10 @@ use crate::{
     },
     rmq::schemas::Exchange,
     tasks::{
-        consumer::utils::{get_request, send_timeout_error_message, send_timeout_error_service},
+        consumer::utils::{
+            get_request, send_publish_error_message, send_timeout_error_message,
+            send_timeout_error_service,
+        },
         producer::methods::{send_message, send_message_to_client, send_message_to_service},
     },
 };
@@ -53,14 +56,28 @@ pub async fn on_client_message(
     let request = Request::new(request, service_info);
     save_client_request(&request, &connection).await;
     debug!("request to service body before sent: {request:?}");
-    send_message_to_service(
+    let _ = match send_message_to_service(
         &channel,
         &request,
-        &connection,
         amq_properties.reply_to().clone().unwrap_or_default(),
         amq_properties.correlation_id().clone().unwrap_or_default(),
     )
-    .await?;
+    .await
+    {
+        Ok(val) => Ok::<(), CustomProjectErrors>(val),
+        Err(msg) => {
+            send_publish_error_message(
+                &request,
+                &msg.to_string(),
+                &channel,
+                &connection,
+                amq_properties.reply_to().clone().unwrap_or_default(),
+                amq_properties.correlation_id().clone().unwrap_or_default(),
+            )
+            .await?;
+            return Err(msg);
+        }
+    };
     let timeout_exchange: Exchange = Exchange::new(
         &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
         &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
