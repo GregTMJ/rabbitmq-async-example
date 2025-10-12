@@ -37,6 +37,7 @@ pub async fn on_client_message(
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
+    info!("Got an incoming request!");
     let request = get_request(&channel, &payload, &amq_properties).await?;
 
     let database_service_info: Services =
@@ -66,6 +67,7 @@ pub async fn on_client_message(
     {
         Ok(val) => Ok::<(), CustomProjectErrors>(val),
         Err(msg) => {
+            info!("Got an error while publishing message!");
             send_publish_error_message(
                 &request,
                 &msg.to_string(),

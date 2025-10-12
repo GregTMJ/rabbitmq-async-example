@@ -1,3 +1,5 @@
+use crate::configs::PROJECT_CONFIG;
+use crate::tasks::consumer::utils::check_exchange_exists;
 use crate::{
     errors::CustomProjectErrors,
     mapping::schemas::{Request, ServiceResponse},
@@ -29,8 +31,8 @@ pub async fn send_message_to_service(
         .with_expiration(expiration.to_string().into());
 
     // TODO. Add this later when Reconnection will be featured in Lapin
-    // let exchange = Exchange::new(&service_info.exchange, &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE);
-    // check_exchange_exists(channel, &exchange).await?;
+    let exchange = Exchange::new(&service_info.exchange, &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE);
+    check_exchange_exists(channel, &exchange).await?;
     info!("Getting channel state {channel:?}");
 
     match channel
@@ -86,7 +88,7 @@ pub async fn send_message_to_client(
     {
         Ok(confirm) => match confirm.await {
             Ok(_) => {
-                info!("Message sent");
+                info!("Message to client was sent!");
                 Ok(())
             }
             Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
@@ -124,7 +126,7 @@ pub async fn send_message<'a>(
     {
         Ok(confirm) => match confirm.await {
             Ok(_) => {
-                info!("Message sent!");
+                info!("Ordinary message sent!");
                 Ok(())
             }
             Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),

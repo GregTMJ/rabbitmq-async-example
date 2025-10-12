@@ -2,7 +2,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use futures::StreamExt;
-use lapin::ErrorKind;
 use lapin::options::{
     BasicAckOptions, BasicConsumeOptions, ExchangeDeclareOptions, QueueBindOptions,
     QueueDeclareOptions,
@@ -10,6 +9,7 @@ use lapin::options::{
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties, Error as RmqError};
+use lapin::{ErrorKind, RecoveryConfig};
 use log::{error, info};
 use sqlx::{Pool, Postgres};
 
@@ -150,9 +150,13 @@ impl RmqConnectionBuilder {
             .map_err(|msg| CustomProjectErrors::DatabaseConnectionError(msg.to_string()))?;
 
         info!("Starting RMQ connection");
-        let conn = Connection::connect(&rmq_url, ConnectionProperties::default())
-            .await
-            .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
+        let recovery_config = RecoveryConfig::full();
+        let conn = Connection::connect(
+            &rmq_url,
+            ConnectionProperties::default().with_experimental_recovery_config(recovery_config),
+        )
+        .await
+        .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
         info!("RMQ Connection established");
 
         info!("Opening channel");

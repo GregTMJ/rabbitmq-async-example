@@ -200,7 +200,7 @@ impl MappedError {
             application_id: value.application.application_id.clone(),
             serhub_request_id: value.service_info.serhub_request_id.clone(),
             service_id: value.application.service_id,
-            system_id: value.application.service_id,
+            system_id: value.application.system_id,
             error_type: Some(error_type),
             error_message: Some(error_message),
             error_traceback: None,

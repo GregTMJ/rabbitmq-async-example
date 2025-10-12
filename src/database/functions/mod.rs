@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use chrono::Local;
 use log::{info, warn};
 use sqlx::{Pool, Postgres};
 use uuid::Uuid as Uuidv4;
@@ -81,8 +82,8 @@ pub async fn save_service_response(
 pub async fn save_to_fail_table(mapped_error: &MappedError, connection: &Pool<Postgres>) -> bool {
     let data_as_json = serde_json::json!(mapped_error.data);
     let result_query = sqlx::query(
-        "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",)
+        "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",)
         .bind(Uuidv4::from_str(&mapped_error.application_id).unwrap())
         .bind(Uuidv4::from_str(&mapped_error.serhub_request_id).unwrap())
         .bind(mapped_error.system_id)
@@ -90,7 +91,9 @@ pub async fn save_to_fail_table(mapped_error: &MappedError, connection: &Pool<Po
         .bind(&mapped_error.error_type)
         .bind(&mapped_error.error_message)
         .bind(&mapped_error.error_traceback)
-        .bind(&data_as_json).execute(connection).await;
+        .bind(&data_as_json)
+        .bind(Local::now())
+        .execute(connection).await;
     match result_query {
         Ok(_) => {
             info!("Fail data saved in database");

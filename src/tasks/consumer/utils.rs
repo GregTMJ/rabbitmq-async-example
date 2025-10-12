@@ -88,6 +88,7 @@ pub async fn check_exchange_exists(
         Ok(_) => Ok(()),
         Err(err) => {
             info!("Exchange error {err}");
+            channel.wait_for_recovery(err.clone()).await.unwrap();
             Err(CustomProjectErrors::RMQPublishError(err.to_string()))
         }
     }
