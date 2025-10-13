@@ -10,11 +10,13 @@ use crate::database::models::services::Services;
 use crate::errors::CustomProjectErrors;
 use crate::mapping::validators::{
     validate_incoming_service_id, validate_incoming_system_id, validate_not_empty,
+    validate_uuid_value,
 };
 
 #[derive(Derivative, Serialize, Deserialize, Validate)]
 #[derivative(Debug, Default)]
 pub struct Application {
+    #[validate(custom(function = "validate_uuid_value"))]
     pub application_id: String,
     #[validate(custom(function = "validate_incoming_service_id"))]
     pub service_id: i32,
@@ -231,3 +233,91 @@ impl RMQDeserializer for BaseRequest {}
 impl RMQDeserializer for Request {}
 impl RMQDeserializer for ServiceResponse {}
 impl RMQDeserializer for MappedError {}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_application_construct() {
+        let application = Application {
+            application_id: Uuid::new_v4().to_string(),
+            service_id: 1,
+            system_id: 1,
+            multi_request: false,
+        };
+
+        assert!(application.validate().is_ok());
+        assert!(Uuid::from_str(&application.application_id).is_ok());
+    }
+
+    #[test]
+    fn test_application_non_valid_construct() {
+        let application = Application {
+            application_id: "Foo".to_string(),
+            service_id: 999,
+            system_id: 999,
+            multi_request: false,
+        };
+
+        let result = application.validate();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_construct_service_info() {
+        let mock_name: String = String::from("foo");
+        let mock_service = Services {
+            id: 1,
+            name: mock_name.clone(),
+            exchange: format!("{mock_name}.exchange").to_string(),
+            queue: format!("{mock_name}.queue").to_string(),
+            routing_key: format!("{mock_name}.routing_key").to_string(),
+            cache_fields: String::new(),
+            cache_expiration: Some("1d".to_string()),
+            timeout: 15,
+        };
+        let result = IncomingServiceInfo::from(mock_service);
+
+        assert_eq!(
+            result.exchange,
+            Some(format!("{mock_name}.exchange").to_string())
+        );
+        assert_eq!(
+            result.routing_key,
+            Some(format!("{mock_name}.routing_key").to_string())
+        );
+
+        let service_info = ServiceInfo::from(result);
+
+        assert_eq!(
+            service_info.exchange,
+            format!("{mock_name}.exchange").to_string()
+        );
+        assert!(service_info.cache_fields.is_empty());
+
+        let validation_result = service_info.validate();
+        assert!(validation_result.is_ok())
+    }
+
+    #[test]
+    fn test_invalid_construct_service_info() {
+        let mock_name: String = String::from("foo");
+        let mock_service = Services {
+            id: 1,
+            name: mock_name.clone(),
+            exchange: format!("{mock_name}.exchange").to_string(),
+            queue: format!("{mock_name}.queue").to_string(),
+            routing_key: String::new(),
+            cache_fields: String::new(),
+            cache_expiration: Some("1d".to_string()),
+            timeout: 15,
+        };
+        let result = IncomingServiceInfo::from(mock_service);
+        let result = ServiceInfo::from(result).validate();
+
+        assert!(result.is_err())
+    }
+}
