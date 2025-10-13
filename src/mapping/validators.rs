@@ -24,3 +24,65 @@ pub fn validate_incoming_system_id(system_id: i32) -> Result<(), ValidationError
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_not_empty_val() {
+        let test_data = "test";
+
+        let result = validate_not_empty(test_data);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ());
+    }
+
+    #[test]
+    fn validate_empty_val() {
+        let test_data = String::new();
+        let expected_error = ValidationError::new("Value not given");
+
+        let result = validate_not_empty(&test_data);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), expected_error);
+    }
+
+    #[test]
+    fn validate_incoming_service_id_ok() {
+        let test_service_id = 1;
+
+        let result = validate_incoming_service_id(test_service_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ());
+    }
+
+    #[test]
+    fn validate_incoming_service_id_fail() {
+        let test_service_id = 999;
+        let expected_error = ValidationError::new("Service ID is not available");
+
+        let result = validate_incoming_service_id(test_service_id);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), expected_error);
+    }
+
+    #[test]
+    fn validate_incoming_system_id_ok() {
+        let test_system_id = 1;
+
+        let result = validate_incoming_system_id(test_system_id);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ());
+    }
+
+    #[test]
+    fn validate_incoming_system_id_fail() {
+        let test_system_id = 999;
+        let expected_error = ValidationError::new("System ID is not available");
+
+        let result = validate_incoming_system_id(test_system_id);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), expected_error);
+    }
+}

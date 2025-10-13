@@ -211,17 +211,15 @@ impl MappedError {
 
 // Used to specify which structs can be deserialized from RabbitMQ messages.
 pub trait RMQDeserializer: DeserializeOwned {
-    fn from_rabbitmq_json<T>(value: Vec<u8>) -> Result<Self, CustomProjectErrors>
-    where
-        T: DeserializeOwned,
-    {
+    fn from_rabbitmq_json<T: DeserializeOwned>(
+        value: Vec<u8>,
+    ) -> Result<Self, CustomProjectErrors> {
         serde_json::from_slice(&value)
             .map_err(|e| CustomProjectErrors::IncomingSerializingMessageError(e.to_string()))
     }
 
-    fn to_json<T>(&self) -> Result<String, CustomProjectErrors>
+    fn to_json<T: DeserializeOwned>(&self) -> Result<String, CustomProjectErrors>
     where
-        T: DeserializeOwned,
         Self: Serialize,
     {
         serde_json::to_string(&self)

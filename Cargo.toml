@@ -1,6 +1,6 @@
 [package]
 name = "rabbitmq-async-example"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2024"
 
 [dependencies]
@@ -28,8 +28,3 @@ name = "rabbitmq-async-example"
 [profile.dev]
 codegen-units = 16  # Increase parallel compilation
 incremental = true   # Enable incremental compilation
-
-[build]
-jobs = 2
-rustc-wrapper = "sccache"
-rustc = "rustc"
