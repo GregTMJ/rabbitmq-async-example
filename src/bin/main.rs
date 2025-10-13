@@ -21,7 +21,7 @@ async fn main() -> Result<(), Error> {
         .unwrap();
     let pool = get_connection_pool(
         &PROJECT_CONFIG.get_postgres_url(),
-        PROJECT_CONFIG.POSTGRES_POOL_SIZE,
+        PROJECT_CONFIG.postgres_pool_size,
     )
     .await
     .unwrap();
@@ -36,48 +36,48 @@ async fn main() -> Result<(), Error> {
     let _ = tokio::join!(
         rmq_connection.start_consumer(
             Exchange::new(
-                &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+                &PROJECT_CONFIG.rmq_exchange,
+                &PROJECT_CONFIG.rmq_exchange_type,
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_REQUEST_QUEUE,
-                routing_key: &PROJECT_CONFIG.RMQ_REQUEST_QUEUE,
+                name: &PROJECT_CONFIG.rmq_request_queue,
+                routing_key: &PROJECT_CONFIG.rmq_request_queue,
             },
             on_client_message,
             "on_client_message",
         ),
         rmq_connection.start_consumer(
             Exchange::new(
-                &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
+                &PROJECT_CONFIG.rmq_exchange,
+                &PROJECT_CONFIG.rmq_exchange_type
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
-                routing_key: &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
+                name: &PROJECT_CONFIG.rmq_service_response_queue,
+                routing_key: &PROJECT_CONFIG.rmq_service_response_queue,
             },
             on_service_message,
             "on_service_message"
         ),
         rmq_connection.start_consumer(
             Exchange::new(
-                &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
+                &PROJECT_CONFIG.rmq_exchange,
+                &PROJECT_CONFIG.rmq_exchange_type
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
-                routing_key: &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
+                name: &PROJECT_CONFIG.rmq_fail_table_queue,
+                routing_key: &PROJECT_CONFIG.rmq_fail_table_queue,
             },
             on_fail_message,
             "on_fail_message"
         ),
         rmq_connection.start_consumer(
             Exchange::new(
-                &PROJECT_CONFIG.RMQ_EXCHANGE,
-                &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE
+                &PROJECT_CONFIG.rmq_exchange,
+                &PROJECT_CONFIG.rmq_exchange_type
             ),
             Queue {
-                name: &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
-                routing_key: &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
+                name: &PROJECT_CONFIG.rmq_timeout_queue,
+                routing_key: &PROJECT_CONFIG.rmq_timeout_queue,
             },
             on_timeout_message,
             "on_timeout_message",

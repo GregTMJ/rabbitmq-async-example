@@ -105,14 +105,14 @@ pub async fn send_timeout_error_message(
         "ServiceTimeout".to_string(),
     );
     let fail_exchange = Exchange::new(
-        &PROJECT_CONFIG.RMQ_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+        &PROJECT_CONFIG.rmq_exchange,
+        &PROJECT_CONFIG.rmq_exchange_type,
     );
     send_message(
         channel,
         error_response.to_json::<MappedError>()?.as_bytes(),
         &fail_exchange,
-        &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
+        &PROJECT_CONFIG.rmq_fail_table_queue,
         None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
@@ -134,14 +134,14 @@ pub async fn send_timeout_error_service(
         vec!["service_timeout".to_string()],
     );
     let response_exchange = Exchange::new(
-        &PROJECT_CONFIG.RMQ_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+        &PROJECT_CONFIG.rmq_exchange,
+        &PROJECT_CONFIG.rmq_exchange_type,
     );
     send_message(
         channel,
         service_response.to_json::<ServiceResponse>()?.as_bytes(),
         &response_exchange,
-        &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
+        &PROJECT_CONFIG.rmq_service_response_queue,
         None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
@@ -158,8 +158,8 @@ pub async fn send_delayed_message(
     reply_to: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let timeout_exchange: Exchange = Exchange::new(
-        &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+        &PROJECT_CONFIG.rmq_delayed_exchange,
+        &PROJECT_CONFIG.rmq_exchange_type,
     );
     let headers = {
         let mut temp_header = FieldTable::default();
@@ -174,7 +174,7 @@ pub async fn send_delayed_message(
         &channel,
         request.to_json::<Request>()?.as_bytes(),
         &timeout_exchange,
-        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
+        &PROJECT_CONFIG.rmq_timeout_queue,
         None,
         correlation_id,
         reply_to,
@@ -199,8 +199,8 @@ pub async fn send_publish_error_message(
         vec![error_message.to_string()],
     );
     let response_exchange = Exchange::new(
-        &PROJECT_CONFIG.RMQ_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+        &PROJECT_CONFIG.rmq_exchange,
+        &PROJECT_CONFIG.rmq_exchange_type,
     );
     save_response_with_request(&request, &connection).await;
     send_message(
@@ -209,7 +209,7 @@ pub async fn send_publish_error_message(
             .to_json::<ServiceResponse>()?
             .as_bytes(),
         &response_exchange,
-        &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
+        &PROJECT_CONFIG.rmq_service_response_queue,
         None,
         correlation_id,
         reply_to,

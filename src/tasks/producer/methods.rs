@@ -32,7 +32,7 @@ pub async fn send_message_to_service(
         .with_expiration(expiration.to_string().into());
 
     // TODO. Add this later when Reconnection will be featured in Lapin
-    let exchange = Exchange::new(&service_info.exchange, &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE);
+    let exchange = Exchange::new(&service_info.exchange, &PROJECT_CONFIG.rmq_exchange_type);
     check_exchange_exists(channel, &exchange).await?;
     info!("Getting channel state {channel:?}");
 
