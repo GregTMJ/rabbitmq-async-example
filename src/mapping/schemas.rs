@@ -218,6 +218,15 @@ pub trait RMQDeserializer: DeserializeOwned {
         serde_json::from_slice(&value)
             .map_err(|e| CustomProjectErrors::IncomingSerializingMessageError(e.to_string()))
     }
+
+    fn to_json<T>(&self) -> Result<String, CustomProjectErrors>
+    where
+        T: DeserializeOwned,
+        Self: Serialize,
+    {
+        serde_json::to_string(&self)
+            .map_err(|e| CustomProjectErrors::SerializingStructError(e.to_string()))
+    }
 }
 impl RMQDeserializer for ByPassRequest {}
 impl RMQDeserializer for BaseRequest {}

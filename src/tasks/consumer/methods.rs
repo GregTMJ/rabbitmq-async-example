@@ -1,15 +1,10 @@
-use lapin::{
-    Channel,
-    protocol::basic::AMQPProperties,
-    types::{AMQPValue, FieldTable, ShortString},
-};
+use lapin::{Channel, protocol::basic::AMQPProperties};
 use log::{debug, info};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use validator::Validate;
 
 use crate::{
-    configs::PROJECT_CONFIG,
     database::{
         functions::{
             check_application_response, get_service_info, save_client_request,
@@ -21,13 +16,12 @@ use crate::{
     mapping::schemas::{
         IncomingServiceInfo, MappedError, RMQDeserializer, Request, ServiceInfo, ServiceResponse,
     },
-    rmq::schemas::Exchange,
     tasks::{
         consumer::utils::{
-            get_request, send_publish_error_message, send_timeout_error_message,
-            send_timeout_error_service,
+            get_request, send_delayed_message, send_publish_error_message,
+            send_timeout_error_message, send_timeout_error_service,
         },
-        producer::methods::{send_message, send_message_to_client, send_message_to_service},
+        producer::methods::{send_message_to_client, send_message_to_service},
     },
 };
 
@@ -80,28 +74,11 @@ pub async fn on_client_message(
             return Err(msg);
         }
     };
-    let timeout_exchange: Exchange = Exchange::new(
-        &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
-        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
-    );
-    let headers = {
-        let mut temp_header = FieldTable::default();
-        let timeout = serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
-        temp_header.insert(
-            ShortString::from("x-delay"),
-            AMQPValue::try_from(&timeout, lapin::types::AMQPType::Float).unwrap(),
-        );
-        temp_header
-    };
-    send_message(
+    send_delayed_message(
+        &request,
         &channel,
-        serde_json::to_string(&request).unwrap().as_bytes(),
-        &timeout_exchange,
-        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
-        None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
-        headers,
     )
     .await?;
     Ok(())

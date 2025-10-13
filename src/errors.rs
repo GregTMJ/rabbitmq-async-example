@@ -10,6 +10,8 @@ pub enum CustomProjectErrors {
     RMQChannelError(String),
     #[error("Message publish error: {0}")]
     RMQPublishError(String),
+    #[error("{0}")]
+    RMQAckError(String),
     #[error("Model {0} validation error: {1}")]
     ValidationError(String, String),
     #[error("{0}")]
@@ -18,6 +20,8 @@ pub enum CustomProjectErrors {
     DatabaseOperationError(String),
     #[error("Rmq message deserializing error: {0}")]
     IncomingSerializingMessageError(String),
+    #[error("Struct cannot be serialized: {0}")]
+    SerializingStructError(String),
     #[error("Unknown error")]
     #[default]
     Unknown,

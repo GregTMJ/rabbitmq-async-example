@@ -10,7 +10,7 @@ use lapin::{
     Channel,
     options::ExchangeDeclareOptions,
     protocol::basic::AMQPProperties,
-    types::{FieldTable, ShortString},
+    types::{AMQPValue, FieldTable, ShortString},
 };
 use log::info;
 use sqlx::{Pool, Postgres};
@@ -110,7 +110,7 @@ pub async fn send_timeout_error_message(
     );
     send_message(
         channel,
-        serde_json::to_string(&error_response).unwrap().as_bytes(),
+        error_response.to_json::<MappedError>()?.as_bytes(),
         &fail_exchange,
         &PROJECT_CONFIG.RMQ_FAIL_TABLE_QUEUE,
         None,
@@ -139,13 +139,46 @@ pub async fn send_timeout_error_service(
     );
     send_message(
         channel,
-        serde_json::to_string(&service_response).unwrap().as_bytes(),
+        service_response.to_json::<ServiceResponse>()?.as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,
         None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
         FieldTable::default(),
+    )
+    .await?;
+    Ok(())
+}
+
+pub async fn send_delayed_message(
+    request: &Request,
+    channel: &Channel,
+    correlation_id: ShortString,
+    reply_to: ShortString,
+) -> Result<(), CustomProjectErrors> {
+    let timeout_exchange: Exchange = Exchange::new(
+        &PROJECT_CONFIG.RMQ_DELAYED_EXCHANGE,
+        &PROJECT_CONFIG.RMQ_EXCHANGE_TYPE,
+    );
+    let headers = {
+        let mut temp_header = FieldTable::default();
+        let timeout = serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
+        temp_header.insert(
+            ShortString::from("x-delay"),
+            AMQPValue::try_from(&timeout, lapin::types::AMQPType::Float).unwrap(),
+        );
+        temp_header
+    };
+    send_message(
+        &channel,
+        request.to_json::<Request>()?.as_bytes(),
+        &timeout_exchange,
+        &PROJECT_CONFIG.RMQ_TIMEOUT_QUEUE,
+        None,
+        correlation_id,
+        reply_to,
+        headers,
     )
     .await?;
     Ok(())
@@ -172,8 +205,8 @@ pub async fn send_publish_error_message(
     save_response_with_request(&request, &connection).await;
     send_message(
         channel,
-        serde_json::to_string(&service_error_response)
-            .unwrap()
+        service_error_response
+            .to_json::<ServiceResponse>()?
             .as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.RMQ_SERVICE_RESPONSE_QUEUE,

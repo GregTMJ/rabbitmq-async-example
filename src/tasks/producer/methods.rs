@@ -1,4 +1,5 @@
 use crate::configs::PROJECT_CONFIG;
+use crate::mapping::schemas::RMQDeserializer;
 use crate::tasks::consumer::utils::check_exchange_exists;
 use crate::{
     errors::CustomProjectErrors,
@@ -40,7 +41,7 @@ pub async fn send_message_to_service(
             &service_info.exchange,
             &service_info.routing_key,
             BasicPublishOptions::default(),
-            serde_json::to_string(request).unwrap().as_bytes(),
+            request.to_json::<Request>()?.as_bytes(),
             amq_properties.clone(),
         )
         .await
@@ -81,7 +82,7 @@ pub async fn send_message_to_client(
             &target_info.exchange,
             &target_info.routing_key,
             BasicPublishOptions::default(),
-            serde_json::to_string(service_response).unwrap().as_bytes(),
+            service_response.to_json::<ServiceResponse>()?.as_bytes(),
             amq_properties,
         )
         .await

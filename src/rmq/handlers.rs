@@ -90,19 +90,17 @@ impl RmqConnection {
             .await
             .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
 
-        let channel = Arc::clone(&self.channel);
         while let Some(delivery) = consumer.next().await {
             match delivery {
                 Ok(msg) => {
-                    channel
-                        .basic_ack(msg.delivery_tag, BasicAckOptions::default())
+                    msg.ack(BasicAckOptions::default())
                         .await
-                        .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+                        .map_err(|msg| CustomProjectErrors::RMQAckError(msg.to_string()))?;
                     let result = callback(
                         msg.data,
                         msg.properties,
                         self.sql_connection_pool.clone(),
-                        channel.clone(),
+                        self.channel.clone(),
                     )
                     .await;
                     if result.is_err() {
