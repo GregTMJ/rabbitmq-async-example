@@ -131,7 +131,10 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(base_request: BaseRequest, service_info: ServiceInfo) -> Self {
+    pub fn new(
+        base_request: BaseRequest,
+        service_info: ServiceInfo,
+    ) -> Self {
         Self {
             application: base_request.application,
             person: base_request.person,
@@ -214,10 +217,11 @@ impl MappedError {
 // Used to specify which structs can be deserialized from RabbitMQ messages.
 pub trait RMQDeserializer: DeserializeOwned {
     fn from_rabbitmq_json<T: DeserializeOwned>(
-        value: Vec<u8>,
+        value: Vec<u8>
     ) -> Result<Self, CustomProjectErrors> {
-        serde_json::from_slice(&value)
-            .map_err(|e| CustomProjectErrors::IncomingSerializingMessageError(e.to_string()))
+        serde_json::from_slice(&value).map_err(|e| {
+            CustomProjectErrors::IncomingSerializingMessageError(e.to_string())
+        })
     }
 
     fn to_json<T: DeserializeOwned>(&self) -> Result<String, CustomProjectErrors>

@@ -1,0 +1,5 @@
+edition = "2018"
+style_edition = "2024"
+
+fn_params_layout = "Vertical"
+max_width = 88

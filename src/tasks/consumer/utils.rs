@@ -2,7 +2,9 @@ use crate::{
     configs::PROJECT_CONFIG,
     database::functions::save_response_with_request,
     errors::CustomProjectErrors,
-    mapping::schemas::{BaseRequest, ByPassRequest, RMQDeserializer, Request, ServiceResponse},
+    mapping::schemas::{
+        BaseRequest, ByPassRequest, RMQDeserializer, Request, ServiceResponse,
+    },
     rmq::schemas::Exchange,
     tasks::producer::methods::{send_message, send_message_to_client},
 };
@@ -113,7 +115,6 @@ pub async fn send_timeout_error_message(
         error_response.to_json::<MappedError>()?.as_bytes(),
         &fail_exchange,
         &PROJECT_CONFIG.rmq_fail_table_queue,
-        None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
         FieldTable::default(),
@@ -142,7 +143,6 @@ pub async fn send_timeout_error_service(
         service_response.to_json::<ServiceResponse>()?.as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
-        None,
         amq_properties.correlation_id().clone().unwrap_or_default(),
         amq_properties.reply_to().clone().unwrap_or_default(),
         FieldTable::default(),
@@ -163,7 +163,8 @@ pub async fn send_delayed_message(
     );
     let headers = {
         let mut temp_header = FieldTable::default();
-        let timeout = serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
+        let timeout =
+            serde_json::to_value(request.service_info.service_timeout * 1000).unwrap();
         temp_header.insert(
             ShortString::from("x-delay"),
             AMQPValue::try_from(&timeout, lapin::types::AMQPType::Float).unwrap(),
@@ -171,11 +172,10 @@ pub async fn send_delayed_message(
         temp_header
     };
     send_message(
-        &channel,
+        channel,
         request.to_json::<Request>()?.as_bytes(),
         &timeout_exchange,
         &PROJECT_CONFIG.rmq_timeout_queue,
-        None,
         correlation_id,
         reply_to,
         headers,
@@ -202,7 +202,7 @@ pub async fn send_publish_error_message(
         &PROJECT_CONFIG.rmq_exchange,
         &PROJECT_CONFIG.rmq_exchange_type,
     );
-    save_response_with_request(&request, &connection).await;
+    save_response_with_request(request, connection).await;
     send_message(
         channel,
         service_error_response
@@ -210,7 +210,6 @@ pub async fn send_publish_error_message(
             .as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
-        None,
         correlation_id,
         reply_to,
         FieldTable::default(),

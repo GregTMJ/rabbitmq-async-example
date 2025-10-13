@@ -3,7 +3,8 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 
 lazy_static! {
-    pub static ref PROJECT_CONFIG: Config = Config::init_from_env().expect("Failed to load envs");
+    pub static ref PROJECT_CONFIG: Config =
+        Config::init_from_env().expect("Failed to load envs");
 }
 
 #[allow(non_snake_case)]

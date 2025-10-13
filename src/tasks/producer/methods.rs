@@ -22,7 +22,8 @@ pub async fn send_message_to_service(
     let expiration = {
         let timestamp_now = service_info.timestamp_received;
         let service_timeout = service_info.service_timeout as i64;
-        (timestamp_now + service_timeout as f32 - chrono::Local::now().timestamp() as f32)
+        (timestamp_now + service_timeout as f32
+            - chrono::Local::now().timestamp() as f32)
             * 1000_f32
     };
     let amq_properties = AMQPProperties::default()
@@ -32,7 +33,8 @@ pub async fn send_message_to_service(
         .with_expiration(expiration.to_string().into());
 
     // TODO. Add this later when Reconnection will be featured in Lapin
-    let exchange = Exchange::new(&service_info.exchange, &PROJECT_CONFIG.rmq_exchange_type);
+    let exchange =
+        Exchange::new(&service_info.exchange, &PROJECT_CONFIG.rmq_exchange_type);
     check_exchange_exists(channel, &exchange).await?;
     info!("Getting channel state {channel:?}");
 
@@ -103,17 +105,14 @@ pub async fn send_message<'a>(
     payload: &'a [u8],
     exchange: &'a Exchange<'_>,
     routing_key: &'a str,
-    expiration: Option<f32>,
     correlation_id: ShortString,
     reply_to: ShortString,
     headers: FieldTable,
 ) -> Result<(), CustomProjectErrors> {
-    let expiration = expiration.unwrap_or(0.0) * 1000.0;
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
         .with_correlation_id(correlation_id)
         .with_reply_to(reply_to)
-        .with_expiration(expiration.to_string().into())
         .with_headers(headers);
     match channel
         .basic_publish(

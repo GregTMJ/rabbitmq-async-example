@@ -74,7 +74,9 @@ impl RmqConnection {
         callback_name: &str,
     ) -> Result<(), CustomProjectErrors>
     where
-        F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
+        F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut
+            + Sync
+            + Send,
         Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
     {
         self.bind_consumer(&exchange, &queue).await?;
@@ -93,9 +95,9 @@ impl RmqConnection {
         while let Some(delivery) = consumer.next().await {
             match delivery {
                 Ok(msg) => {
-                    msg.ack(BasicAckOptions::default())
-                        .await
-                        .map_err(|msg| CustomProjectErrors::RMQAckError(msg.to_string()))?;
+                    msg.ack(BasicAckOptions::default()).await.map_err(|msg| {
+                        CustomProjectErrors::RMQAckError(msg.to_string())
+                    })?;
                     let result = callback(
                         msg.data,
                         msg.properties,
@@ -104,7 +106,9 @@ impl RmqConnection {
                     )
                     .await;
                     if result.is_err() {
-                        error!("Got an error while working with {callback_name}: {result:?}");
+                        error!(
+                            "Got an error while working with {callback_name}: {result:?}"
+                        );
                     }
                 }
                 Err(msg) => {
@@ -127,12 +131,18 @@ impl RmqConnectionBuilder {
         Self::default()
     }
 
-    pub fn rmq_url(mut self, url: String) -> Self {
+    pub fn rmq_url(
+        mut self,
+        url: String,
+    ) -> Self {
         self.rmq_url = Some(url);
         self
     }
 
-    pub fn sql_pool(mut self, pool: Pool<Postgres>) -> Self {
+    pub fn sql_pool(
+        mut self,
+        pool: Pool<Postgres>,
+    ) -> Self {
         self.sql_connection_pool = Some(pool);
         self
     }
@@ -145,23 +155,25 @@ impl RmqConnectionBuilder {
         let sql_connection_pool = self
             .sql_connection_pool
             .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))
-            .map_err(|msg| CustomProjectErrors::DatabaseConnectionError(msg.to_string()))?;
+            .map_err(|msg| {
+                CustomProjectErrors::DatabaseConnectionError(msg.to_string())
+            })?;
 
         info!("Starting RMQ connection");
         let recovery_config = RecoveryConfig::full();
         let conn = Connection::connect(
             &rmq_url,
-            ConnectionProperties::default().with_experimental_recovery_config(recovery_config),
+            ConnectionProperties::default()
+                .with_experimental_recovery_config(recovery_config),
         )
         .await
         .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
         info!("RMQ Connection established");
 
         info!("Opening channel");
-        let channel = conn
-            .create_channel()
-            .await
-            .map_err(|msg| CustomProjectErrors::RMQChannelCreationError(msg.to_string()))?;
+        let channel = conn.create_channel().await.map_err(|msg| {
+            CustomProjectErrors::RMQChannelCreationError(msg.to_string())
+        })?;
         info!("RMQ channel ready to handle");
 
         Ok(RmqConnection {

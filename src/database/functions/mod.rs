@@ -15,17 +15,21 @@ pub async fn get_service_info(
     service_id: &i32,
     connection: &Pool<Postgres>,
 ) -> Result<Services, CustomProjectErrors> {
-    let query_result = sqlx::query_as::<_, Services>("SELECT * FROM services WHERE id = $1")
-        .bind(service_id)
-        .fetch_one(connection)
-        .await;
+    let query_result =
+        sqlx::query_as::<_, Services>("SELECT * FROM services WHERE id = $1")
+            .bind(service_id)
+            .fetch_one(connection)
+            .await;
     match query_result {
         Ok(row) => Ok(row),
         Err(msg) => Err(CustomProjectErrors::DatabaseOperationError(msg.to_string())),
     }
 }
 
-pub async fn save_client_request(request: &Request, connection: &Pool<Postgres>) -> bool {
+pub async fn save_client_request(
+    request: &Request,
+    connection: &Pool<Postgres>,
+) -> bool {
     let client_data = serde_json::json!(&request);
     let request_query = sqlx::query(
         "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data) 
@@ -79,7 +83,10 @@ pub async fn save_service_response(
     }
 }
 
-pub async fn save_to_fail_table(mapped_error: &MappedError, connection: &Pool<Postgres>) -> bool {
+pub async fn save_to_fail_table(
+    mapped_error: &MappedError,
+    connection: &Pool<Postgres>,
+) -> bool {
     let data_as_json = serde_json::json!(mapped_error.data);
     let result_query = sqlx::query(
         "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at) 
@@ -125,7 +132,10 @@ pub async fn check_application_response(
     }
 }
 
-pub async fn save_response_with_request(request: &Request, connection: &Pool<Postgres>) -> bool {
+pub async fn save_response_with_request(
+    request: &Request,
+    connection: &Pool<Postgres>,
+) -> bool {
     let result_query = sqlx::query(
         "INSERT INTO service_responses (application_id, serhub_request_id, system_id, service_id, is_cache)
         VALUES ($1, $2, $3, $4, $5)",

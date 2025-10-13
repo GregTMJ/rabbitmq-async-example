@@ -7,7 +7,10 @@ pub struct Exchange<'a> {
 }
 
 impl<'a> Exchange<'a> {
-    pub fn new(name: &'a str, exchange_type: &str) -> Self {
+    pub fn new(
+        name: &'a str,
+        exchange_type: &str,
+    ) -> Self {
         let exchange_type = match exchange_type {
             "direct" => ExchangeKind::Direct,
             "fanout" => ExchangeKind::Fanout,
