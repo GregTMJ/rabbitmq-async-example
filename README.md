@@ -58,8 +58,10 @@ rabbitmq-async-example/
 │   ├── errors.rs                # Error handling
 │   └── lib.rs                   # Library exports
 ├── 📁 .github/workflows/        # CI/CD pipelines
+├── 📁 migrations/               # SQLX migrations
 ├── Cargo.toml                   # Rust dependencies
 ├── rustfmt.toml                 # Code formatting
+├── docker_compose.yml           # Docker images examples for project
 └── LICENSE                      # MIT License
 ```
 
@@ -149,8 +151,8 @@ Edit the .env file with your specific configuration:
 # RMQ main configs
 RMQ_USER=user
 RMQ_PASSWORD=bitnami
-RMQ_HOST=localhost
-RMQ_PORT=7073
+RMQ_HOST=lapin_rabbitmq
+RMQ_PORT=5672
 RMQ_VHOST=%2F
 RMQ_EXCHANGE=servicehub
 RMQ_EXCHANGE_TYPE=direct
@@ -166,11 +168,13 @@ RMQ_TIMEOUT_QUEUE=timeout_requests
 RMQ_DELAYED_EXCHANGE=delayed_exchange
 
 # Postgres configs
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5434
+POSTGRES_HOST=lapin_postgres
+POSTGRES_PORT=5432
 POSTGRES_DB=servicehub
 POSTGRES_PASSWORD=LyhaEkM2D6TeH96W8jxG
 POSTGRES_USER=servicehub
+
+DATABASE_URL=postgres://servicehub:LyhaEkM2D6TeH96W8jxG@lapin_postgres:5432/servicehub
 
 # Logging level configs
 RUST_LOG=INFO
