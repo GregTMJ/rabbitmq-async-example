@@ -30,9 +30,9 @@ pub async fn get_request(
     let error_message: String;
 
     let base_request: ByPassRequest =
-        RMQDeserializer::from_rabbitmq_json::<ByPassRequest>(payload.to_vec())?;
+        RMQDeserializer::from_rabbitmq_json::<ByPassRequest>(payload)?;
     let request: Result<BaseRequest, CustomProjectErrors> =
-        RMQDeserializer::from_rabbitmq_json::<BaseRequest>(payload.to_vec());
+        RMQDeserializer::from_rabbitmq_json::<BaseRequest>(payload);
 
     match request {
         Ok(body) => match body.application.validate() {
@@ -110,14 +110,17 @@ pub async fn send_timeout_error_message(
         &PROJECT_CONFIG.rmq_exchange,
         &PROJECT_CONFIG.rmq_exchange_type,
     );
+    let properties = AMQPProperties::default()
+        .with_correlation_id(
+            amq_properties.correlation_id().clone().unwrap_or_default(),
+        )
+        .with_reply_to(amq_properties.reply_to().clone().unwrap_or_default());
     send_message(
         channel,
         error_response.to_json::<MappedError>()?.as_bytes(),
         &fail_exchange,
         &PROJECT_CONFIG.rmq_fail_table_queue,
-        amq_properties.correlation_id().clone().unwrap_or_default(),
-        amq_properties.reply_to().clone().unwrap_or_default(),
-        FieldTable::default(),
+        properties,
     )
     .await?;
     Ok(())
@@ -138,14 +141,17 @@ pub async fn send_timeout_error_service(
         &PROJECT_CONFIG.rmq_exchange,
         &PROJECT_CONFIG.rmq_exchange_type,
     );
+    let properties = AMQPProperties::default()
+        .with_correlation_id(
+            amq_properties.correlation_id().clone().unwrap_or_default(),
+        )
+        .with_reply_to(amq_properties.reply_to().clone().unwrap_or_default());
     send_message(
         channel,
         service_response.to_json::<ServiceResponse>()?.as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
-        amq_properties.correlation_id().clone().unwrap_or_default(),
-        amq_properties.reply_to().clone().unwrap_or_default(),
-        FieldTable::default(),
+        properties,
     )
     .await?;
     Ok(())
@@ -171,14 +177,16 @@ pub async fn send_delayed_message(
         );
         temp_header
     };
+    let properties = AMQPProperties::default()
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
+        .with_headers(headers);
     send_message(
         channel,
         request.to_json::<Request>()?.as_bytes(),
         &timeout_exchange,
         &PROJECT_CONFIG.rmq_timeout_queue,
-        correlation_id,
-        reply_to,
-        headers,
+        properties,
     )
     .await?;
     Ok(())
@@ -203,6 +211,9 @@ pub async fn send_publish_error_message(
         &PROJECT_CONFIG.rmq_exchange_type,
     );
     save_response_with_request(request, connection).await;
+    let properties = AMQPProperties::default()
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to);
     send_message(
         channel,
         service_error_response
@@ -210,9 +221,7 @@ pub async fn send_publish_error_message(
             .as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
-        correlation_id,
-        reply_to,
-        FieldTable::default(),
+        properties,
     )
     .await?;
     Ok(())

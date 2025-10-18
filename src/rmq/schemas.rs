@@ -14,6 +14,7 @@ impl<'a> Exchange<'a> {
         let exchange_type = match exchange_type {
             "direct" => ExchangeKind::Direct,
             "fanout" => ExchangeKind::Fanout,
+            "headers" => ExchangeKind::Headers,
             _ => ExchangeKind::Topic,
         };
         Self {
@@ -53,6 +54,7 @@ mod tests {
         let type_1 = "direct";
         let type_2 = "fanout";
         let type_3 = "topic";
+        let type_4 = "headers";
 
         assert_eq!(
             Exchange::new(name, type_1).exchange_type,
@@ -65,6 +67,10 @@ mod tests {
         assert_eq!(
             Exchange::new(name, type_3).exchange_type,
             ExchangeKind::Topic
+        );
+        assert_eq!(
+            Exchange::new(name, type_4).exchange_type,
+            ExchangeKind::Headers
         );
     }
 

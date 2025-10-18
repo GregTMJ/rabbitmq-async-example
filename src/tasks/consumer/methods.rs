@@ -1,4 +1,4 @@
-use lapin::{Channel, protocol::basic::AMQPProperties};
+use lapin::{Channel, message::Delivery};
 use log::{debug, info};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
@@ -27,13 +27,12 @@ use crate::{
 };
 
 pub async fn on_client_message(
-    payload: Vec<u8>,
-    amq_properties: AMQPProperties,
+    msg: Delivery,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Got an incoming request!");
-    let request = get_request(&channel, &payload, &amq_properties).await?;
+    let request = get_request(&channel, &msg.data, &msg.properties).await?;
 
     let database_service_info: Services =
         get_service_info(&request.application.service_id, &connection).await?;
@@ -55,52 +54,51 @@ pub async fn on_client_message(
     let _ = match send_message_to_service(
         &channel,
         &request,
-        amq_properties.reply_to().clone().unwrap_or_default(),
-        amq_properties.correlation_id().clone().unwrap_or_default(),
+        msg.properties.reply_to().clone().unwrap_or_default(),
+        msg.properties.correlation_id().clone().unwrap_or_default(),
     )
     .await
     {
         Ok(val) => Ok::<(), CustomProjectErrors>(val),
-        Err(msg) => {
+        Err(err) => {
             info!("Got an error while publishing message!");
             send_publish_error_message(
                 &request,
-                &msg.to_string(),
+                &err.to_string(),
                 &channel,
                 &connection,
-                amq_properties.reply_to().clone().unwrap_or_default(),
-                amq_properties.correlation_id().clone().unwrap_or_default(),
+                msg.properties.reply_to().clone().unwrap_or_default(),
+                msg.properties.correlation_id().clone().unwrap_or_default(),
             )
             .await?;
-            return Err(msg);
+            return Err(err);
         }
     };
     send_delayed_message(
         &request,
         &channel,
-        amq_properties.correlation_id().clone().unwrap_or_default(),
-        amq_properties.reply_to().clone().unwrap_or_default(),
+        msg.properties.correlation_id().clone().unwrap_or_default(),
+        msg.properties.reply_to().clone().unwrap_or_default(),
     )
     .await?;
     Ok(())
 }
 
 pub async fn on_service_message(
-    payload: Vec<u8>,
-    amq_properties: AMQPProperties,
+    msg: Delivery,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_service_message");
     let service_response: ServiceResponse =
-        RMQDeserializer::from_rabbitmq_json::<ServiceResponse>(payload)?;
+        RMQDeserializer::from_rabbitmq_json::<ServiceResponse>(&msg.data)?;
     let save_result = save_service_response(&service_response, &connection).await;
     if save_result {
         send_message_to_client(
             &channel,
             &service_response,
-            amq_properties.reply_to().clone().unwrap_or_default(),
-            amq_properties.correlation_id().clone().unwrap_or_default(),
+            msg.properties.reply_to().clone().unwrap_or_default(),
+            msg.properties.correlation_id().clone().unwrap_or_default(),
         )
         .await?;
     }
@@ -109,26 +107,24 @@ pub async fn on_service_message(
 }
 
 pub async fn on_fail_message(
-    payload: Vec<u8>,
-    _amq_properties: AMQPProperties,
+    msg: Delivery,
     connection: Arc<Pool<Postgres>>,
     _channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_fail_message");
     let mapped_error: MappedError =
-        RMQDeserializer::from_rabbitmq_json::<MappedError>(payload)?;
+        RMQDeserializer::from_rabbitmq_json::<MappedError>(&msg.data)?;
     save_to_fail_table(&mapped_error, &connection).await;
     Ok(())
 }
 
 pub async fn on_timeout_message(
-    payload: Vec<u8>,
-    amq_properties: AMQPProperties,
+    msg: Delivery,
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_timeout_message");
-    let request: Request = RMQDeserializer::from_rabbitmq_json::<Request>(payload)?;
+    let request: Request = RMQDeserializer::from_rabbitmq_json::<Request>(&msg.data)?;
 
     let existing_application_response = check_application_response(
         &request.service_info.serhub_request_id,
@@ -139,8 +135,8 @@ pub async fn on_timeout_message(
         save_response_with_request(&request, &connection).await;
 
     if !existing_application_response && insert_incoming_request {
-        send_timeout_error_message(&channel, &request, &amq_properties).await?;
-        send_timeout_error_service(&channel, &request, &amq_properties).await?;
+        send_timeout_error_message(&channel, &request, &msg.properties).await?;
+        send_timeout_error_service(&channel, &request, &msg.properties).await?;
     };
     Ok(())
 }

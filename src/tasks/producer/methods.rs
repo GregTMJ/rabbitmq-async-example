@@ -6,10 +6,10 @@ use crate::{
     mapping::schemas::{Request, ServiceResponse},
     rmq::schemas::Exchange,
 };
+use lapin::Channel;
 use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
-use lapin::{Channel, types::FieldTable};
 use log::info;
 
 pub async fn send_message_to_service(
@@ -105,22 +105,15 @@ pub async fn send_message<'a>(
     payload: &'a [u8],
     exchange: &'a Exchange<'_>,
     routing_key: &'a str,
-    correlation_id: ShortString,
-    reply_to: ShortString,
-    headers: FieldTable,
+    properties: AMQPProperties,
 ) -> Result<(), CustomProjectErrors> {
-    let amq_properties = AMQPProperties::default()
-        .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id)
-        .with_reply_to(reply_to)
-        .with_headers(headers);
     match channel
         .basic_publish(
             exchange.name,
             routing_key,
             BasicPublishOptions::default(),
             payload,
-            amq_properties,
+            properties,
         )
         .await
     {

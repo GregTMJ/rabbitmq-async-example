@@ -2,11 +2,10 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use futures::StreamExt;
+use lapin::message::Delivery;
 use lapin::options::{
-    BasicAckOptions, BasicConsumeOptions, ExchangeDeclareOptions, QueueBindOptions,
-    QueueDeclareOptions,
+    BasicConsumeOptions, ExchangeDeclareOptions, QueueBindOptions, QueueDeclareOptions,
 };
-use lapin::protocol::basic::AMQPProperties;
 use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties, Error as RmqError};
 use lapin::{ErrorKind, RecoveryConfig};
@@ -74,9 +73,7 @@ impl RmqConnection {
         callback_name: &str,
     ) -> Result<(), CustomProjectErrors>
     where
-        F: Fn(Vec<u8>, AMQPProperties, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut
-            + Sync
-            + Send,
+        F: Fn(Delivery, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
         Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
     {
         self.bind_consumer(&exchange, &queue).await?;
@@ -90,19 +87,15 @@ impl RmqConnection {
                 FieldTable::default(),
             )
             .await
-            .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
+            .map_err(|err| CustomProjectErrors::RMQChannelError(err.to_string()))?;
 
         while let Some(delivery) = consumer.next().await {
             match delivery {
                 Ok(msg) => {
-                    msg.ack(BasicAckOptions::default()).await.map_err(|msg| {
-                        CustomProjectErrors::RMQAckError(msg.to_string())
-                    })?;
                     let result = callback(
-                        msg.data,
-                        msg.properties,
-                        self.sql_connection_pool.clone(),
-                        self.channel.clone(),
+                        msg,
+                        Arc::clone(&self.sql_connection_pool),
+                        Arc::clone(&self.channel),
                     )
                     .await;
                     if result.is_err() {
