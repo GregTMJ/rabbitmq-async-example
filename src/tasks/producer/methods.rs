@@ -11,12 +11,13 @@ use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
 use log::info;
+use std::rc::Rc;
 
 pub async fn send_message_to_service(
     channel: &Channel,
     request: &Request,
-    reply_to: ShortString,
-    correlation_id: ShortString,
+    reply_to: Rc<ShortString>,
+    correlation_id: Rc<ShortString>,
 ) -> Result<(), CustomProjectErrors> {
     let service_info = &request.service_info;
     let expiration = {
@@ -28,8 +29,8 @@ pub async fn send_message_to_service(
     };
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id)
-        .with_reply_to(reply_to)
+        .with_correlation_id(correlation_id.as_str().into())
+        .with_reply_to(reply_to.as_str().into())
         .with_expiration(expiration.to_string().into());
 
     // TODO. Add this later when Reconnection will be featured in Lapin
@@ -44,7 +45,7 @@ pub async fn send_message_to_service(
             &service_info.routing_key,
             BasicPublishOptions::default(),
             request.to_json::<Request>()?.as_bytes(),
-            amq_properties.clone(),
+            amq_properties,
         )
         .await
     {
@@ -65,16 +66,16 @@ pub async fn send_message_to_service(
 pub async fn send_message_to_client(
     channel: &Channel,
     service_response: &ServiceResponse,
-    reply_to: ShortString,
-    correlation_id: ShortString,
+    reply_to: Rc<ShortString>,
+    correlation_id: Rc<ShortString>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Producing response to client");
     let expiration = 60 * 1000;
     let target_info = &service_response.target;
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id)
-        .with_reply_to(reply_to)
+        .with_correlation_id(correlation_id.as_str().into())
+        .with_reply_to(reply_to.as_str().into())
         .with_expiration(expiration.to_string().into())
         .with_app_id(ShortString::from(
             service_response.application_id.to_owned(),

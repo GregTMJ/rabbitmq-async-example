@@ -74,7 +74,7 @@ impl RmqConnection {
     ) -> Result<(), CustomProjectErrors>
     where
         F: Fn(Delivery, Arc<Pool<Postgres>>, Arc<Channel>) -> Fut + Sync + Send,
-        Fut: Future<Output = Result<(), CustomProjectErrors>> + Send,
+        Fut: Future<Output = Result<(), CustomProjectErrors>>,
     {
         self.bind_consumer(&exchange, &queue).await?;
         info!("Starting consuming {callback_name}");

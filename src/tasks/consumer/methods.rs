@@ -1,7 +1,7 @@
 use lapin::{Channel, message::Delivery};
 use log::{debug, info};
 use sqlx::{Pool, Postgres};
-use std::sync::Arc;
+use std::{rc::Rc, sync::Arc};
 use validator::Validate;
 
 use crate::{
@@ -39,6 +39,10 @@ pub async fn on_client_message(
     let base_service_info = IncomingServiceInfo::from(database_service_info);
     debug!("Got the following db info {base_service_info:?}");
     let service_info: ServiceInfo = ServiceInfo::from(base_service_info);
+    let (reply_to, correlation_id) = (
+        Rc::new(msg.properties.reply_to().clone().unwrap_or_default()),
+        Rc::new(msg.properties.correlation_id().clone().unwrap_or_default()),
+    );
     match service_info.validate() {
         Ok(val) => val,
         Err(msg) => {
@@ -54,8 +58,8 @@ pub async fn on_client_message(
     let _ = match send_message_to_service(
         &channel,
         &request,
-        msg.properties.reply_to().clone().unwrap_or_default(),
-        msg.properties.correlation_id().clone().unwrap_or_default(),
+        Rc::clone(&reply_to),
+        Rc::clone(&correlation_id),
     )
     .await
     {
@@ -67,8 +71,8 @@ pub async fn on_client_message(
                 &err.to_string(),
                 &channel,
                 &connection,
-                msg.properties.reply_to().clone().unwrap_or_default(),
-                msg.properties.correlation_id().clone().unwrap_or_default(),
+                Rc::clone(&reply_to),
+                Rc::clone(&correlation_id),
             )
             .await?;
             return Err(err);
@@ -77,8 +81,8 @@ pub async fn on_client_message(
     send_delayed_message(
         &request,
         &channel,
-        msg.properties.correlation_id().clone().unwrap_or_default(),
-        msg.properties.reply_to().clone().unwrap_or_default(),
+        Rc::clone(&reply_to),
+        Rc::clone(&correlation_id),
     )
     .await?;
     Ok(())
@@ -97,8 +101,8 @@ pub async fn on_service_message(
         send_message_to_client(
             &channel,
             &service_response,
-            msg.properties.reply_to().clone().unwrap_or_default(),
-            msg.properties.correlation_id().clone().unwrap_or_default(),
+            Rc::new(msg.properties.reply_to().clone().unwrap_or_default()),
+            Rc::new(msg.properties.correlation_id().clone().unwrap_or_default()),
         )
         .await?;
     }
