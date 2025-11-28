@@ -46,7 +46,6 @@ mod tests {
 
         let result = validate_not_empty(test_data);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ());
     }
 
     #[test]
@@ -65,7 +64,6 @@ mod tests {
         let result = validate_uuid_value(&test_data);
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ());
     }
 
     #[test]
@@ -84,7 +82,6 @@ mod tests {
 
         let result = validate_incoming_service_id(test_service_id);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ());
     }
 
     #[test]
@@ -103,7 +100,6 @@ mod tests {
 
         let result = validate_incoming_system_id(test_system_id);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ());
     }
 
     #[test]
