@@ -48,7 +48,7 @@ rabbitmq-async-example/
 │   │   └── main.rs              # Application entry point
 │   ├── 📁 database/
 │   │   ├── 📁 models/           # Database models and schemas
-│   │   └── 📁 functions/        # Database operations
+│   │   └── 📁 functions/        # Database operations + schemas
 │   ├── 📁 mapping/              # Data mapping and validation
 │   ├── 📁 rmq/                  # RabbitMQ handlers and schemas
 │   ├── 📁 tasks/
