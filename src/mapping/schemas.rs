@@ -1,9 +1,9 @@
-use chrono::prelude::*;
-use derivative::Derivative;
+use chrono::Local;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as AnyJsonValue;
-use sqlx::types::{Json, Uuid};
+use sqlx::types::Json;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::database::models::services::Services;
@@ -13,8 +13,7 @@ use crate::mapping::validators::{
     validate_uuid_value,
 };
 
-#[derive(Derivative, Serialize, Deserialize, Validate)]
-#[derivative(Debug, Default)]
+#[derive(Serialize, Deserialize, Validate, Debug, Default)]
 pub struct Application {
     #[validate(custom(function = "validate_uuid_value"))]
     pub application_id: String,
@@ -22,7 +21,6 @@ pub struct Application {
     pub service_id: i32,
     #[validate(custom(function = "validate_incoming_system_id"))]
     pub system_id: i32,
-    #[derivative(Default(value = "false"))]
     pub multi_request: bool,
 }
 
@@ -38,20 +36,31 @@ pub struct BaseService {
     pub timeout: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Derivative)]
-#[derivative(Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct IncomingServiceInfo {
-    #[derivative(Default(value = "Local::now().timestamp() as f32"))]
     pub timestamp_received: f32,
     pub service_timeout: Option<u16>,
-    #[derivative(Default(value = "Uuid::new_v4().to_string()"))]
     pub serhub_request_id: String,
-    #[derivative(Default(value = "String::new()"))]
     pub cached_fields: String,
     pub cache_expiration: Option<String>,
     pub exchange: Option<String>,
     pub routing_key: Option<String>,
+}
+
+impl TryFrom<&Services> for IncomingServiceInfo {
+    type Error = CustomProjectErrors;
+    fn try_from(value: &Services) -> Result<Self, CustomProjectErrors> {
+        Ok(Self {
+            timestamp_received: Local::now().timestamp() as f32,
+            service_timeout: Some(value.timeout as u16),
+            serhub_request_id: Uuid::new_v4().to_string(),
+            cached_fields: value.cache_fields.clone(),
+            cache_expiration: value.cache_expiration.clone(),
+            exchange: Some(value.exchange.clone()),
+            routing_key: Some(value.routing_key.clone()),
+        })
+    }
 }
 
 impl From<Services> for IncomingServiceInfo {
@@ -67,7 +76,7 @@ impl From<Services> for IncomingServiceInfo {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Validate, Derivative)]
+#[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct ServiceInfo {
     pub timestamp_received: f32,
     pub service_timeout: u16,
@@ -144,8 +153,7 @@ impl Request {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Derivative)]
-#[derivative(Default)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ServiceResponse {
     pub application_id: String,
@@ -154,12 +162,27 @@ pub struct ServiceResponse {
     pub system_id: i32,
     pub is_cache: bool,
     pub status: String,
-    #[derivative(Default(value = "Vec::new()"))]
     pub status_description: Vec<String>,
-    #[derivative(Default(value = "Local::now().to_string()"))]
     pub response_created_time: String,
     pub response: Option<Json<AnyJsonValue>>,
     pub target: RmqTarget,
+}
+
+impl Default for ServiceResponse {
+    fn default() -> Self {
+        Self {
+            application_id: String::new(),
+            serhub_request_id: String::new(),
+            service_id: 0,
+            system_id: 0,
+            is_cache: false,
+            status: String::new(),
+            status_description: Vec::new(),
+            response_created_time: Local::now().to_string(),
+            response: None,
+            target: RmqTarget::default(),
+        }
+    }
 }
 
 impl ServiceResponse {
@@ -240,6 +263,7 @@ impl RMQDeserializer for MappedError {}
 
 #[cfg(test)]
 mod tests {
+    use sqlx::types::Uuid;
     use std::str::FromStr;
 
     use super::*;
