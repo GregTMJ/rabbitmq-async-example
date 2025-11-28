@@ -18,10 +18,14 @@ pub enum CustomProjectErrors {
     DatabaseConnectionError(String),
     #[error("{0}")]
     DatabaseOperationError(String),
+    #[error("{0}")]
+    DatabaseTypeValidationError(String),
     #[error("Rmq message deserializing error: {0}")]
     IncomingSerializingMessageError(String),
     #[error("Struct cannot be serialized: {0}")]
     SerializingStructError(String),
+    #[error("Health Check error")]
+    DatabaseHealthCheckError,
     #[error("Unknown error")]
     #[default]
     Unknown,

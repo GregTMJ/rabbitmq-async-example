@@ -11,6 +11,8 @@ use crate::{
     mapping::schemas::{MappedError, Request, ServiceResponse},
 };
 
+pub mod schemas;
+
 pub async fn get_service_info(
     service_id: &i32,
     connection: &Pool<Postgres>,
@@ -29,25 +31,25 @@ pub async fn get_service_info(
 pub async fn save_client_request(
     request: &Request,
     connection: &Pool<Postgres>,
-) -> bool {
-    let client_data = serde_json::json!(&request);
+) -> Result<bool, CustomProjectErrors> {
+    let request_data = schemas::SqlRequest::try_from(request)?;
     let request_query = sqlx::query(
         "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data) 
             VALUES ($1, $2, $3, $4, $5)",
     )
-    .bind(Uuidv4::from_str(&request.application.application_id).unwrap())
-    .bind(Uuidv4::from_str(&request.service_info.serhub_request_id).unwrap())
-    .bind(request.application.system_id)
-    .bind(request.application.service_id)
-    .bind(client_data).execute(connection).await;
+    .bind(request_data.application_id)
+    .bind(request_data.serhub_request_id)
+    .bind(request_data.system_id)
+    .bind(request_data.service_id)
+    .bind(request_data.request_data).execute(connection).await;
     match request_query {
         Ok(_) => {
             info!("Client request saved into database!");
-            true
+            Ok(true)
         }
         Err(msg) => {
             warn!("Client request not saved into database: {msg}");
-            false
+            Ok(false)
         }
     }
 }
@@ -55,30 +57,29 @@ pub async fn save_client_request(
 pub async fn save_service_response(
     service_response: &ServiceResponse,
     connection: &Pool<Postgres>,
-) -> bool {
-    let target = serde_json::json!(&service_response.target);
-    let json_vector = serde_json::json!(&service_response.status_description);
+) -> Result<bool, CustomProjectErrors> {
+    let response_to_save = schemas::ServiceSqlResponse::try_from(service_response)?;
     let result_query = sqlx::query(
     "INSERT INTO application_responses 
     (application_id, serhub_request_id, system_id, service_id, is_cache, status, status_description, response, target)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",)
-    .bind(Uuidv4::from_str(&service_response.application_id).unwrap())
-    .bind(Uuidv4::from_str(&service_response.serhub_request_id).unwrap())
-    .bind(service_response.system_id)
-    .bind(service_response.service_id)
-    .bind(service_response.is_cache)
-    .bind(&service_response.status)
-    .bind(&json_vector)
-    .bind(&service_response.response)
-    .bind(&target).execute(connection).await;
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+    .bind(response_to_save.application_id)
+    .bind(response_to_save.serhub_request_id)
+    .bind(response_to_save.system_id)
+    .bind(response_to_save.service_id)
+    .bind(response_to_save.is_cache)
+    .bind(response_to_save.status)
+    .bind(response_to_save.status_description)
+    .bind(response_to_save.response)
+    .bind(response_to_save.target).execute(connection).await;
     match result_query {
         Ok(_) => {
             info!("Response saved in database");
-            true
+            Ok(true)
         }
         Err(msg) => {
             warn!("Response not saved in database with error: {msg}");
-            false
+            Ok(false)
         }
     }
 }
@@ -86,29 +87,29 @@ pub async fn save_service_response(
 pub async fn save_to_fail_table(
     mapped_error: &MappedError,
     connection: &Pool<Postgres>,
-) -> bool {
-    let data_as_json = serde_json::json!(mapped_error.data);
+) -> Result<bool, CustomProjectErrors> {
+    let sql_mapped_error = schemas::SqlMappedError::try_from(mapped_error)?;
     let result_query = sqlx::query(
         "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",)
-        .bind(Uuidv4::from_str(&mapped_error.application_id).unwrap())
-        .bind(Uuidv4::from_str(&mapped_error.serhub_request_id).unwrap())
-        .bind(mapped_error.system_id)
-        .bind(mapped_error.service_id)
-        .bind(&mapped_error.error_type)
-        .bind(&mapped_error.error_message)
-        .bind(&mapped_error.error_traceback)
-        .bind(&data_as_json)
+        .bind(sql_mapped_error.application_id)
+        .bind(sql_mapped_error.serhub_request_id)
+        .bind(sql_mapped_error.system_id)
+        .bind(sql_mapped_error.service_id)
+        .bind(sql_mapped_error.error_type)
+        .bind(sql_mapped_error.error_message)
+        .bind(sql_mapped_error.error_traceback)
+        .bind(sql_mapped_error.data)
         .bind(Local::now())
         .execute(connection).await;
     match result_query {
         Ok(_) => {
             info!("Fail data saved in database");
-            true
+            Ok(true)
         }
         Err(msg) => {
             warn!("Fail data not saved in database with error: {msg}");
-            false
+            Ok(false)
         }
     }
 }
@@ -116,18 +117,18 @@ pub async fn save_to_fail_table(
 pub async fn check_application_response(
     serhub_request_id: &str,
     connection: &Pool<Postgres>,
-) -> bool {
+) -> Result<bool, CustomProjectErrors> {
     let result_query: Result<bool, _> = sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM application_responses WHERE serhub_request_id = $1)",
     )
-    .bind(Uuidv4::from_str(serhub_request_id).unwrap())
+    .bind(Uuidv4::from_str(serhub_request_id).map_err(|e| CustomProjectErrors::DatabaseOperationError(e.to_string()))?)
     .fetch_one(connection)
     .await;
     match result_query {
-        Ok(result) => result,
+        Ok(result) => Ok(result),
         Err(msg) => {
             warn!("Failed to check existing query in database with error: {msg}");
-            false
+            Ok(false)
         }
     }
 }
@@ -135,24 +136,25 @@ pub async fn check_application_response(
 pub async fn save_response_with_request(
     request: &Request,
     connection: &Pool<Postgres>,
-) -> bool {
+) -> Result<bool, CustomProjectErrors> {
+    let sql_request = schemas::SqlRequest::try_from(request)?;
     let result_query = sqlx::query(
         "INSERT INTO service_responses (application_id, serhub_request_id, system_id, service_id, is_cache)
         VALUES ($1, $2, $3, $4, $5)",
-    ).bind(Uuidv4::from_str(&request.application.application_id).unwrap())
-    .bind(Uuidv4::from_str(&request.service_info.serhub_request_id).unwrap())
-    .bind(request.application.system_id)
-    .bind(request.application.service_id)
+    ).bind(sql_request.application_id)
+    .bind(sql_request.serhub_request_id)
+    .bind(sql_request.system_id)
+    .bind(sql_request.service_id)
     .bind(false)
     .execute(connection).await;
     match result_query {
         Ok(_) => {
             info!("Inserted a timeout response!");
-            true
+            Ok(true)
         }
         Err(_) => {
             info!("timeout response is not inserted!");
-            false
+            Ok(false)
         }
     }
 }

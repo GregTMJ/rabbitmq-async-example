@@ -1867,9 +1867,9 @@ dependencies = [
 
 [[package]]
 name = "lapin"
-version = "3.7.0"
+version = "3.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "531b882dc9a4975745d68195cd01e66a66981003c5560958a896018ce489f1a5"
+checksum = "913a84142a99160ecef997a5c17c53639bcbac4424a0315a5ffe6c8be8e8db86"
 dependencies = [
  "amq-protocol",
  "async-global-executor-trait 3.1.0",
@@ -2637,7 +2637,7 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rabbitmq-async-example"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "async-trait",
  "cargo-tarpaulin",

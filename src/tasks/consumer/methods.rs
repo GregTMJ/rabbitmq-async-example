@@ -53,7 +53,7 @@ pub async fn on_client_message(
         }
     }
     let request = Request::new(request, service_info);
-    save_client_request(&request, &connection).await;
+    save_client_request(&request, &connection).await?;
     debug!("request to service body before sent: {request:?}");
     let _ = match send_message_to_service(
         &channel,
@@ -96,7 +96,7 @@ pub async fn on_service_message(
     info!("Incoming data for on_service_message");
     let service_response: ServiceResponse =
         RMQDeserializer::from_rabbitmq_json::<ServiceResponse>(&msg.data)?;
-    let save_result = save_service_response(&service_response, &connection).await;
+    let save_result = save_service_response(&service_response, &connection).await?;
     if save_result {
         send_message_to_client(
             &channel,
@@ -118,7 +118,7 @@ pub async fn on_fail_message(
     info!("Incoming data for on_fail_message");
     let mapped_error: MappedError =
         RMQDeserializer::from_rabbitmq_json::<MappedError>(&msg.data)?;
-    save_to_fail_table(&mapped_error, &connection).await;
+    save_to_fail_table(&mapped_error, &connection).await?;
     Ok(())
 }
 
@@ -134,9 +134,9 @@ pub async fn on_timeout_message(
         &request.service_info.serhub_request_id,
         &connection,
     )
-    .await;
+    .await?;
     let insert_incoming_request =
-        save_response_with_request(&request, &connection).await;
+        save_response_with_request(&request, &connection).await?;
 
     if !existing_application_response && insert_incoming_request {
         send_timeout_error_message(&channel, &request, &msg.properties).await?;

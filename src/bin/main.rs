@@ -1,8 +1,8 @@
-use lapin::{Error, ErrorKind};
 use log::info;
 use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
     database::{check_connection, get_connection_pool},
+    errors::CustomProjectErrors,
     rmq::handlers::RmqConnectionBuilder,
     rmq::schemas::{Exchange, Queue},
     tasks::consumer::methods::{
@@ -11,27 +11,27 @@ use rabbitmq_async_example::{
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), CustomProjectErrors> {
     dotenvy::dotenv().ok();
     env_logger::init();
-    info!("All env values are set");
-    info!("Checking connection");
+    info!("--- All env values are set");
+    info!("--- Checking connection");
     check_connection(&PROJECT_CONFIG.get_postgres_url())
         .await
-        .unwrap();
+        .map_err(|_| CustomProjectErrors::DatabaseHealthCheckError)?;
     let pool = get_connection_pool(
         &PROJECT_CONFIG.get_postgres_url(),
         PROJECT_CONFIG.postgres_pool_size,
     )
     .await
     .unwrap();
-    info!("Database connection established!");
+    info!("--- Database connection established!");
     let rmq_connection = RmqConnectionBuilder::new()
         .rmq_url(PROJECT_CONFIG.get_rmq_url())
         .sql_pool(pool)
         .build()
         .await
-        .map_err(|_| Error::from(ErrorKind::NoConfiguredExecutor))?;
+        .map_err(|e| CustomProjectErrors::RMQConnectionError(e.to_string()))?;
 
     let _ = tokio::join!(
         rmq_connection.start_consumer(

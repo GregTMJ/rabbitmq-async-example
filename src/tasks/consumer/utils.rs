@@ -211,7 +211,7 @@ pub async fn send_publish_error_message(
         &PROJECT_CONFIG.rmq_exchange,
         &PROJECT_CONFIG.rmq_exchange_type,
     );
-    save_response_with_request(request, connection).await;
+    save_response_with_request(request, connection).await?;
     let properties = AMQPProperties::default()
         .with_correlation_id(correlation_id.as_str().into())
         .with_reply_to(reply_to.as_str().into());
