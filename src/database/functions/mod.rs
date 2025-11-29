@@ -6,12 +6,12 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid as Uuidv4;
 
 use crate::{
-    database::models::services::Services,
+    database::models::{
+        ApplicationRequests, ApplicationResponses, FailTable, Services,
+    },
     errors::CustomProjectErrors,
     mapping::schemas::{MappedError, Request, ServiceResponse},
 };
-
-pub mod schemas;
 
 pub async fn get_service_info(
     service_id: &i32,
@@ -32,7 +32,7 @@ pub async fn save_client_request(
     request: &Request,
     connection: &Pool<Postgres>,
 ) -> Result<bool, CustomProjectErrors> {
-    let request_data = schemas::SqlRequest::try_from(request)?;
+    let request_data = ApplicationRequests::try_from(request)?;
     let request_query = sqlx::query(
         "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data) 
             VALUES ($1, $2, $3, $4, $5)",
@@ -41,7 +41,7 @@ pub async fn save_client_request(
     .bind(request_data.serhub_request_id)
     .bind(request_data.system_id)
     .bind(request_data.service_id)
-    .bind(request_data.request_data).execute(connection).await;
+    .bind(request_data.application_data).execute(connection).await;
     match request_query {
         Ok(_) => {
             info!("Client request saved into database!");
@@ -58,7 +58,7 @@ pub async fn save_service_response(
     service_response: &ServiceResponse,
     connection: &Pool<Postgres>,
 ) -> Result<bool, CustomProjectErrors> {
-    let response_to_save = schemas::ServiceSqlResponse::try_from(service_response)?;
+    let response_to_save = ApplicationResponses::try_from(service_response)?;
     let result_query = sqlx::query(
     "INSERT INTO application_responses 
     (application_id, serhub_request_id, system_id, service_id, is_cache, status, status_description, response, target)
@@ -88,7 +88,7 @@ pub async fn save_to_fail_table(
     mapped_error: &MappedError,
     connection: &Pool<Postgres>,
 ) -> Result<bool, CustomProjectErrors> {
-    let sql_mapped_error = schemas::SqlMappedError::try_from(mapped_error)?;
+    let sql_mapped_error = FailTable::try_from(mapped_error)?;
     let result_query = sqlx::query(
         "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at) 
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",)
@@ -137,7 +137,7 @@ pub async fn save_response_with_request(
     request: &Request,
     connection: &Pool<Postgres>,
 ) -> Result<bool, CustomProjectErrors> {
-    let sql_request = schemas::SqlRequest::try_from(request)?;
+    let sql_request = ApplicationRequests::try_from(request)?;
     let result_query = sqlx::query(
         "INSERT INTO service_responses (application_id, serhub_request_id, system_id, service_id, is_cache)
         VALUES ($1, $2, $3, $4, $5)",

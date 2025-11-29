@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct ApplicationResponses {
+pub struct ServiceResponses {
     pub id: i32,
     pub application_id: String,
     pub serhub_request_id: String,

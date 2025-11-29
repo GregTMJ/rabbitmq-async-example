@@ -14,7 +14,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
   rabbit:
     container_name: lapin_rabbitmq
-    image: 'bitnami/rabbitmq:3.12.6'
+    image: 'bitnamilegacy/rabbitmq:3.12.6'
     environment:
       - RABBITMQ_PLUGINS=rabbitmq_management rabbitmq_delayed_message_exchange
     volumes:
