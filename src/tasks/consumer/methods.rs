@@ -5,12 +5,9 @@ use std::{rc::Rc, sync::Arc};
 use validator::Validate;
 
 use crate::{
-    database::{
-        functions::{
-            check_application_response, get_service_info, save_client_request,
-            save_response_with_request, save_service_response, save_to_fail_table,
-        },
-        models::services::Services,
+    database::functions::{
+        check_application_response, get_service_info, save_client_request,
+        save_response_with_request, save_service_response, save_to_fail_table,
     },
     errors::CustomProjectErrors,
     mapping::schemas::{
@@ -34,9 +31,9 @@ pub async fn on_client_message(
     info!("Got an incoming request!");
     let request = get_request(&channel, &msg.data, &msg.properties).await?;
 
-    let database_service_info: Services =
+    let service_info =
         get_service_info(&request.application.service_id, &connection).await?;
-    let base_service_info = IncomingServiceInfo::from(database_service_info);
+    let base_service_info = IncomingServiceInfo::try_from(&service_info)?;
     debug!("Got the following db info {base_service_info:?}");
     let service_info: ServiceInfo = ServiceInfo::from(base_service_info);
     let (reply_to, correlation_id) = (
@@ -130,15 +127,14 @@ pub async fn on_timeout_message(
     info!("Incoming data for on_timeout_message");
     let request: Request = RMQDeserializer::from_rabbitmq_json::<Request>(&msg.data)?;
 
-    let existing_application_response = check_application_response(
+    let existing_response = check_application_response(
         &request.service_info.serhub_request_id,
         &connection,
     )
     .await?;
-    let insert_incoming_request =
-        save_response_with_request(&request, &connection).await?;
+    let insert_request = save_response_with_request(&request, &connection).await?;
 
-    if !existing_application_response && insert_incoming_request {
+    if !existing_response && insert_request {
         send_timeout_error_message(&channel, &request, &msg.properties).await?;
         send_timeout_error_service(&channel, &request, &msg.properties).await?;
     };

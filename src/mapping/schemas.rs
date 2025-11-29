@@ -63,19 +63,6 @@ impl TryFrom<&Services> for IncomingServiceInfo {
     }
 }
 
-impl From<Services> for IncomingServiceInfo {
-    fn from(value: Services) -> Self {
-        Self {
-            service_timeout: Some(value.timeout as u16),
-            cache_expiration: value.cache_expiration,
-            cached_fields: value.cache_fields,
-            routing_key: Some(value.routing_key),
-            exchange: Some(value.exchange),
-            ..Default::default()
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct ServiceInfo {
     pub timestamp_received: f32,

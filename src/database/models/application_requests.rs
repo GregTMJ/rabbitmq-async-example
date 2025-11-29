@@ -41,7 +41,9 @@ impl TryFrom<&Request> for ApplicationRequests {
                     CustomProjectErrors::SerializingStructError(e.to_string())
                 })?,
             )
-            .map_err(|e| CustomProjectErrors::SerializingStructError(e.to_string()))?,
+            .map_err(|e| {
+                CustomProjectErrors::DatabaseTypeValidationError(e.to_string())
+            })?,
             ..Default::default()
         })
     }
