@@ -95,6 +95,7 @@ rabbitmq-async-example/
 #### 🔄 RabbitMQ Modules (rmq/)
 - **`src/rmq/schemas.rs`** - Message schemas and data structures for RabbitMQ
 - **`src/rmq/handlers.rs`** - Connection handling and message processing logic
+- **`src/rmq/builder.rs`** - Contains a builder RMQ connection
 
 #### 📊 Task Management (tasks/)
 - **`src/tasks/producer/methods.rs`** - All methods for producing messages to RabbitMQ
