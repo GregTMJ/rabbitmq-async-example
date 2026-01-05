@@ -11,7 +11,8 @@ impl<'a> Exchange<'a> {
         name: &'a str,
         exchange_type: &str,
     ) -> Self {
-        let exchange_type = match exchange_type {
+        let lowercased_exchange_type = exchange_type.to_ascii_lowercase();
+        let exchange_type = match lowercased_exchange_type.as_str() {
             "direct" => ExchangeKind::Direct,
             "fanout" => ExchangeKind::Fanout,
             "headers" => ExchangeKind::Headers,

@@ -74,7 +74,7 @@ rabbitmq-async-example/
 
 | Module | Purpose | Key Files |
 |--------|---------|-----------|
-| **`src/rmq/`** | RabbitMQ connection management and message handling | `handlers.rs`, `schemas.rs` |
+| **`src/rmq/`** | RabbitMQ connection management and message handling | `builder.rs`, `handlers.rs`, `schemas.rs`  |
 | **`src/tasks/`** | Producer and consumer implementations | `producer/methods.rs`, `consumer/methods.rs` |
 | **`src/database/`** | PostgreSQL operations with SQLx | `models/`, `functions/mod.rs` |
 | **`src/mapping/`** | Data validation and transformation | `schemas.rs`, `validators.rs` |

@@ -1,5 +1,5 @@
 use crate::configs::PROJECT_CONFIG;
-use crate::mapping::schemas::RMQDeserializer;
+use crate::mapping::RMQDeserializer;
 use crate::tasks::consumer::utils::check_exchange_exists;
 use crate::{
     errors::CustomProjectErrors,
@@ -22,10 +22,9 @@ pub async fn send_message_to_service(
     let service_info = &request.service_info;
     let expiration = {
         let timestamp_now = service_info.timestamp_received;
-        let service_timeout = service_info.service_timeout as i64;
-        (timestamp_now + service_timeout as f32
-            - chrono::Local::now().timestamp() as f32)
-            * 1000_f32
+        let service_timeout = service_info.service_timeout as f32;
+        let current_timestamp = chrono::Local::now().timestamp() as f32;
+        (timestamp_now + service_timeout - current_timestamp) * 1000_f32
     };
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
@@ -33,11 +32,9 @@ pub async fn send_message_to_service(
         .with_reply_to(reply_to.as_str().into())
         .with_expiration(expiration.to_string().into());
 
-    // TODO. Add this later when Reconnection will be featured in Lapin
     let exchange =
         Exchange::new(&service_info.exchange, &PROJECT_CONFIG.rmq_exchange_type);
     check_exchange_exists(channel, &exchange).await?;
-    info!("Getting channel state {channel:?}");
 
     match channel
         .basic_publish(
@@ -91,14 +88,14 @@ pub async fn send_message_to_client(
         .await
     {
         Ok(confirm) => match confirm.await {
-            Ok(_) => {
-                info!("Message to client was sent!");
-                Ok(())
+            Ok(_) => info!("Message to client was sent!"),
+            Err(msg) => {
+                return Err(CustomProjectErrors::RMQPublishError(msg.to_string()));
             }
-            Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
         },
-        Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
+        Err(msg) => return Err(CustomProjectErrors::RMQPublishError(msg.to_string())),
     }
+    Ok(())
 }
 
 pub async fn send_message<'a>(
@@ -120,7 +117,7 @@ pub async fn send_message<'a>(
     {
         Ok(confirm) => match confirm.await {
             Ok(_) => {
-                info!("Ordinary message sent!");
+                info!("message sent!");
                 Ok(())
             }
             Err(msg) => Err(CustomProjectErrors::RMQPublishError(msg.to_string())),

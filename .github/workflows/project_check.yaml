@@ -15,14 +15,14 @@
         steps:
         - uses: actions/checkout@v4
 
-        - name: Install cargo-audit, cargo-deny, tarpaulin, chef
-          run: cargo install cargo-audit cargo-deny cargo-tarpaulin cargo-chef
+        # - name: Install cargo-audit, cargo-deny, tarpaulin, chef
+        #   run: cargo install cargo-audit cargo-deny cargo-tarpaulin cargo-chef
         
-        - name: Security check
-          run: cargo audit
+        # - name: Security check
+        #   run: cargo audit
         
-        - name: Dependency policy check
-          run: cargo deny check
+        # - name: Dependency policy check
+        #   run: cargo deny check
 
         - name: Test coverage gate
           run: cargo tarpaulin

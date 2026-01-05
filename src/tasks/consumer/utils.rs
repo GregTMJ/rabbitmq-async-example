@@ -2,9 +2,8 @@ use crate::{
     configs::PROJECT_CONFIG,
     database::functions::save_response_with_request,
     errors::CustomProjectErrors,
-    mapping::schemas::{
-        BaseRequest, ByPassRequest, RMQDeserializer, Request, ServiceResponse,
-    },
+    mapping::RMQDeserializer,
+    mapping::schemas::{BaseRequest, ByPassRequest, Request, ServiceResponse},
     rmq::schemas::Exchange,
     tasks::producer::methods::{send_message, send_message_to_client},
 };
@@ -91,7 +90,10 @@ pub async fn check_exchange_exists(
         Ok(_) => Ok(()),
         Err(err) => {
             info!("Exchange error {err}");
-            channel.wait_for_recovery(err.clone()).await.unwrap();
+            channel
+                .wait_for_recovery(err.clone())
+                .await
+                .map_err(|e| CustomProjectErrors::RMQChannelError(e.to_string()))?;
             Err(CustomProjectErrors::RMQPublishError(err.to_string()))
         }
     }

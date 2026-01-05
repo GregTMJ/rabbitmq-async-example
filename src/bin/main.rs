@@ -3,7 +3,7 @@ use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
     database::{check_connection, get_connection_pool},
     errors::CustomProjectErrors,
-    rmq::handlers::RmqConnectionBuilder,
+    rmq::builder::RmqConnectionBuilder,
     rmq::schemas::{Exchange, Queue},
     tasks::consumer::methods::{
         on_client_message, on_fail_message, on_service_message, on_timeout_message,
@@ -24,11 +24,11 @@ async fn main() -> Result<(), CustomProjectErrors> {
         PROJECT_CONFIG.postgres_pool_size,
     )
     .await
-    .unwrap();
+    .map_err(|e| CustomProjectErrors::DatabaseConnectionError(e.to_string()))?;
     info!("--- Database connection established!");
     let rmq_connection = RmqConnectionBuilder::new()
-        .rmq_url(PROJECT_CONFIG.get_rmq_url())
-        .sql_pool(pool)
+        .with_rmq_url(PROJECT_CONFIG.get_rmq_url())
+        .with_sql_pool(pool)
         .build()
         .await
         .map_err(|e| CustomProjectErrors::RMQConnectionError(e.to_string()))?;

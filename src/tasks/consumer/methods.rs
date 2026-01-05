@@ -10,9 +10,9 @@ use crate::{
         save_response_with_request, save_service_response, save_to_fail_table,
     },
     errors::CustomProjectErrors,
+    mapping::RMQDeserializer,
     mapping::schemas::{
-        IncomingServiceInfo, MappedError, RMQDeserializer, Request, ServiceInfo,
-        ServiceResponse,
+        IncomingServiceInfo, MappedError, Request, ServiceInfo, ServiceResponse,
     },
     tasks::{
         consumer::utils::{

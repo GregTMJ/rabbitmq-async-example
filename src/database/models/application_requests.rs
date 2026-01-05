@@ -1,4 +1,5 @@
-use crate::mapping::schemas::{RMQDeserializer, Request};
+use crate::mapping::RMQDeserializer;
+use crate::mapping::schemas::Request;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};

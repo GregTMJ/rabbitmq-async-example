@@ -1,5 +1,4 @@
 use chrono::Local;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as AnyJsonValue;
 use sqlx::types::Json;
@@ -223,30 +222,6 @@ impl MappedError {
         }
     }
 }
-
-// Used to specify which structs can be deserialized from RabbitMQ messages.
-pub trait RMQDeserializer: DeserializeOwned {
-    fn from_rabbitmq_json<T: DeserializeOwned>(
-        value: &[u8]
-    ) -> Result<Self, CustomProjectErrors> {
-        serde_json::from_slice(value).map_err(|e| {
-            CustomProjectErrors::IncomingSerializingMessageError(e.to_string())
-        })
-    }
-
-    fn to_json<T: DeserializeOwned>(&self) -> Result<String, CustomProjectErrors>
-    where
-        Self: Serialize,
-    {
-        serde_json::to_string(&self)
-            .map_err(|e| CustomProjectErrors::SerializingStructError(e.to_string()))
-    }
-}
-impl RMQDeserializer for ByPassRequest {}
-impl RMQDeserializer for BaseRequest {}
-impl RMQDeserializer for Request {}
-impl RMQDeserializer for ServiceResponse {}
-impl RMQDeserializer for MappedError {}
 
 #[cfg(test)]
 mod tests {
