@@ -4,8 +4,7 @@ use sqlx::FromRow;
 use sqlx::types::{Json, JsonValue, Uuid};
 use std::str::FromStr;
 
-use crate::errors::CustomProjectErrors;
-use crate::mapping::schemas::MappedError;
+use crate::prelude::{CustomProjectErrors, MappedError};
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 pub struct FailTable {

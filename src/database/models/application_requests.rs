@@ -1,4 +1,3 @@
-use crate::mapping::schemas::{RMQDeserializer, Request};
 use rmq_macros::RMQDeserializer;
 use std::str::FromStr;
 
@@ -7,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::{Json, JsonValue, Uuid};
 
-use crate::errors::CustomProjectErrors;
+use crate::prelude::{CustomProjectErrors, RMQDeserializer, Request};
 
 #[derive(RMQDeserializer, Debug, Serialize, Deserialize, FromRow, Default)]
 pub struct ApplicationRequests {

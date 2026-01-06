@@ -9,8 +9,7 @@ use crate::{
     database::models::{
         ApplicationRequests, ApplicationResponses, FailTable, Services,
     },
-    errors::CustomProjectErrors,
-    mapping::schemas::{MappedError, Request, ServiceResponse},
+    prelude::{CustomProjectErrors, MappedError, Request, ServiceResponse},
 };
 
 pub async fn get_service_info(

@@ -1,11 +1,7 @@
 use crate::configs::PROJECT_CONFIG;
 use crate::mapping::schemas::RMQDeserializer;
+use crate::prelude::*;
 use crate::tasks::consumer::utils::check_exchange_exists;
-use crate::{
-    errors::CustomProjectErrors,
-    mapping::schemas::{Request, ServiceResponse},
-    rmq::schemas::Exchange,
-};
 use lapin::Channel;
 use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;

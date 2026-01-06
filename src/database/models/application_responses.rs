@@ -4,8 +4,7 @@ use sqlx::FromRow;
 use sqlx::types::{Json, JsonValue, Uuid};
 use std::str::FromStr;
 
-use crate::errors::CustomProjectErrors;
-use crate::mapping::schemas::ServiceResponse;
+use crate::prelude::{CustomProjectErrors, ServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize, FromRow, Default)]
 pub struct ApplicationResponses {

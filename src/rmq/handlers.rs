@@ -11,8 +11,7 @@ use lapin::types::FieldTable;
 use log::{error, info};
 use sqlx::{Pool, Postgres};
 
-use crate::errors::CustomProjectErrors;
-use crate::rmq::schemas::{Exchange, Queue};
+use crate::prelude::{CustomProjectErrors, Exchange, Queue};
 
 #[derive(Debug)]
 pub struct RmqConnection {
