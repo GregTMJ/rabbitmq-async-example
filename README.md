@@ -56,7 +56,9 @@ rabbitmq-async-example/
 │   │   └── 📁 consumer/         # Message consumers
 │   ├── configs.rs               # Configuration management
 │   ├── errors.rs                # Error handling
-│   └── lib.rs                   # Library exports
+│   ├── lib.rs                   # Library exports
+│   └── prelude.rs               # Global module for exports 
+├── 📁 rmq_macros/               # Library for macros
 ├── 📁 .github/workflows/        # CI/CD pipelines
 ├── 📁 migrations/               # SQLX migrations
 ├── Cargo.toml                   # Rust dependencies

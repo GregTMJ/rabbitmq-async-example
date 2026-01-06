@@ -14,9 +14,8 @@
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v4
-
-        # - name: Install cargo-audit, cargo-deny, tarpaulin, chef
-        #   run: cargo install cargo-audit cargo-deny cargo-tarpaulin cargo-chef
+        - name: Install tarpaulin, chef
+          run: cargo install cargo-tarpaulin cargo-chef
         
         # - name: Security check
         #   run: cargo audit
