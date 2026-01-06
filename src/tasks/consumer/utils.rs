@@ -2,8 +2,9 @@ use crate::{
     configs::PROJECT_CONFIG,
     database::functions::save_response_with_request,
     errors::CustomProjectErrors,
-    mapping::RMQDeserializer,
-    mapping::schemas::{BaseRequest, ByPassRequest, Request, ServiceResponse},
+    mapping::schemas::{
+        BaseRequest, ByPassRequest, RMQDeserializer, Request, ServiceResponse,
+    },
     rmq::schemas::Exchange,
     tasks::producer::methods::{send_message, send_message_to_client},
 };
@@ -29,10 +30,8 @@ pub async fn get_request(
     let status_description: Vec<String>;
     let error_message: String;
 
-    let base_request: ByPassRequest =
-        RMQDeserializer::from_rabbitmq_json::<ByPassRequest>(payload)?;
-    let request: Result<BaseRequest, CustomProjectErrors> =
-        RMQDeserializer::from_rabbitmq_json::<BaseRequest>(payload);
+    let base_request = ByPassRequest::from_rabbitmq_json(payload)?;
+    let request = BaseRequest::from_rabbitmq_json(payload);
 
     match request {
         Ok(body) => match body.application.validate() {
@@ -120,7 +119,7 @@ pub async fn send_timeout_error_message(
         .with_reply_to(amq_properties.reply_to().clone().unwrap_or_default());
     send_message(
         channel,
-        error_response.to_json::<MappedError>()?.as_bytes(),
+        error_response.to_json()?.as_bytes(),
         &fail_exchange,
         &PROJECT_CONFIG.rmq_fail_table_queue,
         properties,
@@ -151,7 +150,7 @@ pub async fn send_timeout_error_service(
         .with_reply_to(amq_properties.reply_to().clone().unwrap_or_default());
     send_message(
         channel,
-        service_response.to_json::<ServiceResponse>()?.as_bytes(),
+        service_response.to_json()?.as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
         properties,
@@ -186,7 +185,7 @@ pub async fn send_delayed_message(
         .with_headers(headers);
     send_message(
         channel,
-        request.to_json::<Request>()?.as_bytes(),
+        request.to_json()?.as_bytes(),
         &timeout_exchange,
         &PROJECT_CONFIG.rmq_timeout_queue,
         properties,
@@ -219,9 +218,7 @@ pub async fn send_publish_error_message(
         .with_reply_to(reply_to.as_str().into());
     send_message(
         channel,
-        service_error_response
-            .to_json::<ServiceResponse>()?
-            .as_bytes(),
+        service_error_response.to_json()?.as_bytes(),
         &response_exchange,
         &PROJECT_CONFIG.rmq_service_response_queue,
         properties,

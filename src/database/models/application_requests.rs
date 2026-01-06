@@ -1,5 +1,5 @@
-use crate::mapping::RMQDeserializer;
-use crate::mapping::schemas::Request;
+use crate::mapping::schemas::{RMQDeserializer, Request};
+use rmq_macros::RMQDeserializer;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
@@ -9,7 +9,7 @@ use sqlx::types::{Json, JsonValue, Uuid};
 
 use crate::errors::CustomProjectErrors;
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Default)]
+#[derive(RMQDeserializer, Debug, Serialize, Deserialize, FromRow, Default)]
 pub struct ApplicationRequests {
     id: i32,
     pub application_id: String,
@@ -37,11 +37,9 @@ impl TryFrom<&Request> for ApplicationRequests {
                 .to_string(),
             service_id: value.application.service_id,
             system_id: value.application.system_id,
-            application_data: Json::decode_from_string(
-                &value.to_json::<JsonValue>().map_err(|e| {
-                    CustomProjectErrors::SerializingStructError(e.to_string())
-                })?,
-            )
+            application_data: Json::decode_from_string(&value.to_json().map_err(
+                |e| CustomProjectErrors::SerializingStructError(e.to_string()),
+            )?)
             .map_err(|e| {
                 CustomProjectErrors::DatabaseTypeValidationError(e.to_string())
             })?,

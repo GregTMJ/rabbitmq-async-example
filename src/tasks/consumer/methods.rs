@@ -10,9 +10,9 @@ use crate::{
         save_response_with_request, save_service_response, save_to_fail_table,
     },
     errors::CustomProjectErrors,
-    mapping::RMQDeserializer,
     mapping::schemas::{
-        IncomingServiceInfo, MappedError, Request, ServiceInfo, ServiceResponse,
+        IncomingServiceInfo, MappedError, RMQDeserializer, Request, ServiceInfo,
+        ServiceResponse,
     },
     tasks::{
         consumer::utils::{
@@ -91,8 +91,7 @@ pub async fn on_service_message(
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_service_message");
-    let service_response: ServiceResponse =
-        RMQDeserializer::from_rabbitmq_json::<ServiceResponse>(&msg.data)?;
+    let service_response = ServiceResponse::from_rabbitmq_json(&msg.data)?;
     let save_result = save_service_response(&service_response, &connection).await?;
     if save_result {
         send_message_to_client(
@@ -113,8 +112,7 @@ pub async fn on_fail_message(
     _channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_fail_message");
-    let mapped_error: MappedError =
-        RMQDeserializer::from_rabbitmq_json::<MappedError>(&msg.data)?;
+    let mapped_error = MappedError::from_rabbitmq_json(&msg.data)?;
     save_to_fail_table(&mapped_error, &connection).await?;
     Ok(())
 }
@@ -125,7 +123,7 @@ pub async fn on_timeout_message(
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
     info!("Incoming data for on_timeout_message");
-    let request: Request = RMQDeserializer::from_rabbitmq_json::<Request>(&msg.data)?;
+    let request = Request::from_rabbitmq_json(&msg.data)?;
 
     let existing_response = check_application_response(
         &request.service_info.serhub_request_id,

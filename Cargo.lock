@@ -5048,6 +5048,7 @@ dependencies = [
  "lapin",
  "lazy_static",
  "log 0.4.28",
+ "rmq_macros",
  "serde",
  "serde_json",
  "sqlx",
@@ -5381,6 +5382,14 @@ dependencies = [
  "byteorder",
  "rmp",
  "serde",
+]
+
+[[package]]
+name = "rmq_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]
