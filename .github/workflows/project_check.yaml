@@ -16,12 +16,6 @@
         - uses: actions/checkout@v4
         - name: Install tarpaulin, chef
           run: cargo install cargo-tarpaulin cargo-chef
-        
-        # - name: Security check
-        #   run: cargo audit
-        
-        # - name: Dependency policy check
-        #   run: cargo deny check
 
         - name: Test coverage gate
           run: cargo tarpaulin
