@@ -289,7 +289,7 @@ mod tests {
             cache_expiration: Some("1d".to_string()),
             timeout: 15,
         };
-        let result = IncomingServiceInfo::from(mock_service);
+        let result = IncomingServiceInfo::try_from(&mock_service).unwrap();
 
         assert_eq!(
             result.exchange,
@@ -325,7 +325,7 @@ mod tests {
             cache_expiration: Some("1d".to_string()),
             timeout: 15,
         };
-        let result = IncomingServiceInfo::from(mock_service);
+        let result = IncomingServiceInfo::try_from(&mock_service).unwrap();
         let result = ServiceInfo::from(result).validate();
 
         assert!(result.is_err())
