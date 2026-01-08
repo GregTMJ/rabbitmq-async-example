@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use lapin::{Connection, ConnectionProperties, Error as RmqError};
 use lapin::{ErrorKind, RecoveryConfig};
@@ -48,26 +47,22 @@ impl RmqConnectionBuilder {
                 CustomProjectErrors::DatabaseConnectionError(msg.to_string())
             })?;
 
-        info!("Starting RMQ connection");
-        let recovery_config = RecoveryConfig::full();
+        info!("---- Starting RMQ connection ----");
         let conn = Connection::connect(
             &rmq_url,
             ConnectionProperties::default()
-                .with_experimental_recovery_config(recovery_config),
+                .with_experimental_recovery_config(RecoveryConfig::full()),
         )
         .await
         .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
-        info!("RMQ Connection established");
+        info!("---- RMQ Connection established ----");
 
-        info!("Opening channel");
+        info!("---- Opening channel ----");
         let channel = conn.create_channel().await.map_err(|msg| {
             CustomProjectErrors::RMQChannelCreationError(msg.to_string())
         })?;
-        info!("RMQ channel ready to handle");
+        info!("---- RMQ channel ready to handle ----");
 
-        Ok(RmqConnection {
-            channel: Arc::new(channel),
-            sql_connection_pool: Arc::new(sql_connection_pool),
-        })
+        Ok(RmqConnection::new(channel, sql_connection_pool))
     }
 }

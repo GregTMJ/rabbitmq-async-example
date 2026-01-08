@@ -16,12 +16,11 @@ pub async fn get_service_info(
     service_id: &i32,
     connection: &Pool<Postgres>,
 ) -> Result<Services, CustomProjectErrors> {
-    let query_result =
-        sqlx::query_as::<_, Services>("SELECT * FROM services WHERE id = $1")
-            .bind(service_id)
-            .fetch_one(connection)
-            .await;
-    match query_result {
+    match sqlx::query_as::<_, Services>("SELECT * FROM services WHERE id = $1")
+        .bind(service_id)
+        .fetch_one(connection)
+        .await
+    {
         Ok(row) => Ok(row),
         Err(msg) => Err(CustomProjectErrors::DatabaseOperationError(msg.to_string())),
     }
@@ -151,8 +150,11 @@ pub async fn save_response_with_request(
             info!("Inserted a timeout response!");
             Ok(true)
         }
-        Err(_) => {
-            info!("timeout response is not inserted!");
+        Err(msg) => {
+            warn!(
+                "timeout response is not inserted! Error: {}",
+                msg.to_string()
+            );
             Ok(false)
         }
     }

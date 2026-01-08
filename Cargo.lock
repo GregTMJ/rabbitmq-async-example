@@ -1899,7 +1899,7 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rabbitmq-async-example"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "async-trait",
  "chrono",

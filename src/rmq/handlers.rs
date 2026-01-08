@@ -20,12 +20,22 @@ pub struct RmqConnection {
 }
 
 impl RmqConnection {
+    pub fn new(
+        channel: Channel,
+        sql_connection_pool: Pool<Postgres>,
+    ) -> Self {
+        Self {
+            channel: Arc::new(channel),
+            sql_connection_pool: Arc::new(sql_connection_pool),
+        }
+    }
+
     pub async fn bind_consumer<'a>(
         &self,
         exchange: &'a Exchange<'a>,
         queue: &'a Queue<'a>,
     ) -> Result<(), CustomProjectErrors> {
-        info!("Binding queue to channel");
+        info!("Binding queue {} to channel", queue.name);
         self.channel
             .exchange_declare(
                 exchange.name,
@@ -59,7 +69,7 @@ impl RmqConnection {
             )
             .await
             .map_err(|msg| CustomProjectErrors::RMQChannelError(msg.to_string()))?;
-        info!("Binding successful");
+        info!("Binding queue {} successful", queue.name);
         Ok(())
     }
 

@@ -24,9 +24,9 @@ pub async fn on_client_message(
     connection: Arc<Pool<Postgres>>,
     channel: Arc<Channel>,
 ) -> Result<(), CustomProjectErrors> {
-    info!("Got an incoming request!");
-    let request = get_request(&channel, &msg.data, &msg.properties).await?;
+    debug!("Got an incoming request!");
 
+    let request = get_request(&channel, &msg.data, &msg.properties).await?;
     let service_info =
         get_service_info(&request.application.service_id, &connection).await?;
     let base_service_info = IncomingServiceInfo::try_from(&service_info)?;
@@ -47,7 +47,9 @@ pub async fn on_client_message(
     }
     let request = Request::new(request, service_info);
     save_client_request(&request, &connection).await?;
+
     debug!("request to service body before sent: {request:?}");
+
     let _ = match send_message_to_service(
         &channel,
         &request,

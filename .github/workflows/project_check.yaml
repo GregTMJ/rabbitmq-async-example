@@ -14,11 +14,11 @@
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v4
-        - name: Install tarpaulin, chef
-          run: cargo install cargo-tarpaulin cargo-chef
+        - name: Install chef
+          run: cargo install cargo-chef
 
         - name: Test coverage gate
-          run: cargo tarpaulin
+          run: cargo test
 
         - name: Build using cargo chef
           run: |

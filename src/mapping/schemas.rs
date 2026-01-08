@@ -1,6 +1,6 @@
 use chrono::Local;
 use serde::{Deserialize, Serialize};
-use serde_json::Value as AnyJsonValue;
+use serde_json::Value as JsonValue;
 use sqlx::types::Json;
 use uuid::Uuid;
 use validator::Validate;
@@ -16,17 +16,14 @@ use rmq_macros::RMQDeserializer;
 use serde::de::DeserializeOwned;
 
 // Used to specify which structs can be deserialized from RabbitMQ messages.
-pub trait RMQDeserializer: DeserializeOwned {
+pub trait RMQDeserializer: DeserializeOwned + Serialize {
     fn from_rabbitmq_json(value: &[u8]) -> Result<Self, CustomProjectErrors> {
         serde_json::from_slice(value).map_err(|e| {
             CustomProjectErrors::IncomingSerializingMessageError(e.to_string())
         })
     }
 
-    fn to_json(&self) -> Result<String, CustomProjectErrors>
-    where
-        Self: Serialize,
-    {
+    fn to_json(&self) -> Result<String, CustomProjectErrors> {
         serde_json::to_string(&self)
             .map_err(|e| CustomProjectErrors::SerializingStructError(e.to_string()))
     }
@@ -55,7 +52,7 @@ pub struct BaseService {
     pub timeout: String,
 }
 
-#[derive(RMQDeserializer, Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, RMQDeserializer)]
 #[serde(default)]
 pub struct IncomingServiceInfo {
     pub timestamp_received: f32,
@@ -82,7 +79,7 @@ impl TryFrom<&Services> for IncomingServiceInfo {
     }
 }
 
-#[derive(RMQDeserializer, Debug, Deserialize, Serialize, Validate)]
+#[derive(Debug, Deserialize, Serialize, Validate, RMQDeserializer)]
 pub struct ServiceInfo {
     pub timestamp_received: f32,
     pub service_timeout: u16,
@@ -115,7 +112,7 @@ impl From<IncomingServiceInfo> for ServiceInfo {
     }
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct RmqTarget {
     pub vhost: String,
     pub exchange: String,
@@ -123,24 +120,24 @@ pub struct RmqTarget {
     pub queue: Option<String>,
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, RMQDeserializer)]
 pub struct ByPassRequest {
     pub application: Application,
     pub target: RmqTarget,
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, RMQDeserializer)]
 pub struct BaseRequest {
     pub application: Application,
-    pub person: AnyJsonValue,
+    pub person: JsonValue,
     pub service_info: Option<IncomingServiceInfo>,
     pub target: RmqTarget,
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, RMQDeserializer)]
 pub struct Request {
     pub application: Application,
-    pub person: AnyJsonValue,
+    pub person: JsonValue,
     pub service_info: ServiceInfo,
     pub target: RmqTarget,
 }
@@ -159,7 +156,7 @@ impl Request {
     }
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, RMQDeserializer)]
 #[serde(default)]
 pub struct ServiceResponse {
     pub application_id: String,
@@ -170,7 +167,7 @@ pub struct ServiceResponse {
     pub status: String,
     pub status_description: Vec<String>,
     pub response_created_time: String,
-    pub response: Option<Json<AnyJsonValue>>,
+    pub response: Option<Json<JsonValue>>,
     pub target: RmqTarget,
 }
 
@@ -212,7 +209,7 @@ impl ServiceResponse {
     }
 }
 
-#[derive(RMQDeserializer, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, RMQDeserializer)]
 pub struct MappedError {
     pub application_id: String,
     pub serhub_request_id: String,
@@ -221,7 +218,7 @@ pub struct MappedError {
     pub error_type: Option<String>,
     pub error_message: Option<String>,
     pub error_traceback: Option<String>,
-    pub data: Option<AnyJsonValue>,
+    pub data: Option<JsonValue>,
 }
 
 impl MappedError {
