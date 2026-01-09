@@ -1,20 +1,25 @@
-use std::fmt::Debug;
-
-use lapin::{Connection, ConnectionProperties, Error as RmqError};
-use lapin::{ErrorKind, RecoveryConfig};
+use lapin::RecoveryConfig;
+use lapin::{Connection, ConnectionProperties};
 use log::info;
 use sqlx::{Pool, Postgres};
 
+use crate::database::get_connection_pool;
 use crate::errors::CustomProjectErrors;
 use crate::rmq::handlers::RmqConnection;
 
-#[derive(Debug, Default)]
-pub struct RmqConnectionBuilder {
-    rmq_url: Option<String>,
-    sql_connection_pool: Option<Pool<Postgres>>,
+#[derive(Clone, Default)]
+struct SqlConnection {
+    url: String,
+    max_pool_size: u8,
 }
 
-impl RmqConnectionBuilder {
+#[derive(Default)]
+pub struct ConnectionBuilder {
+    rmq_url: String,
+    sql_connection: SqlConnection,
+}
+
+impl ConnectionBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -23,42 +28,48 @@ impl RmqConnectionBuilder {
         mut self,
         url: String,
     ) -> Self {
-        self.rmq_url = Some(url);
+        self.rmq_url = url;
         self
     }
 
     pub fn with_sql_pool(
         mut self,
-        pool: Pool<Postgres>,
+        url: String,
+        max_pool_size: u8,
     ) -> Self {
-        self.sql_connection_pool = Some(pool);
+        self.sql_connection = SqlConnection { url, max_pool_size };
         self
     }
 
-    pub async fn build(self) -> Result<RmqConnection, CustomProjectErrors> {
-        let rmq_url = self
-            .rmq_url
-            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))
-            .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
-        let sql_connection_pool = self
-            .sql_connection_pool
-            .ok_or(RmqError::from(ErrorKind::NoConfiguredExecutor))
-            .map_err(|msg| {
-                CustomProjectErrors::DatabaseConnectionError(msg.to_string())
-            })?;
-
-        info!("---- Starting RMQ connection ----");
-        let conn = Connection::connect(
-            &rmq_url,
+    async fn build_rmq_connection(&self) -> Result<Connection, CustomProjectErrors> {
+        let rmq_url = &self.rmq_url;
+        Connection::connect(
+            rmq_url,
             ConnectionProperties::default()
                 .with_experimental_recovery_config(RecoveryConfig::full()),
         )
         .await
-        .map_err(|msg| CustomProjectErrors::RMQConnectionError(msg.to_string()))?;
+        .map_err(|e| CustomProjectErrors::RMQConnectionError(e.to_string()))
+    }
+
+    async fn build_sql_connection_pool(
+        &self
+    ) -> Result<Pool<Postgres>, CustomProjectErrors> {
+        let sql_connection = &self.sql_connection;
+        get_connection_pool(&sql_connection.url, sql_connection.max_pool_size).await
+    }
+
+    pub async fn build(self) -> Result<RmqConnection, CustomProjectErrors> {
+        info!("---- Opening Database Pool Connection ----");
+        let sql_connection_pool = self.build_sql_connection_pool().await?;
+        info!("---- Pool ready for usage ----");
+
+        info!("---- Starting RMQ connection ----");
+        let rmq_connection = self.build_rmq_connection().await?;
         info!("---- RMQ Connection established ----");
 
         info!("---- Opening channel ----");
-        let channel = conn.create_channel().await.map_err(|msg| {
+        let channel = rmq_connection.create_channel().await.map_err(|msg| {
             CustomProjectErrors::RMQChannelCreationError(msg.to_string())
         })?;
         info!("---- RMQ channel ready to handle ----");

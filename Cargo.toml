@@ -1,6 +1,6 @@
 [package]
 name = "rabbitmq-async-example"
-version = "1.5.4"
+version = "1.5.5"
 edition = "2024"
 authors = ["Gregory Saliba", "gregtmj@gmail.com"]
 description = "This project is meant to handle multiple consumers for Rabbitmq and act as a system for I/O microservices operations"
@@ -14,9 +14,7 @@ lapin = { version = "3.7.2", features = ["unstable"] }
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 chrono = { version = "0.4" , features = ["serde"] }
-lazy_static = "1.5"
 dotenvy = "0.15.7"
-async-trait = "0.1.89"
 serde = { version = "1.0.227" }
 serde_json = { version = "1.0.145" }
 uuid = { version = "1.18", features = ["v4"] }

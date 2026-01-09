@@ -1,9 +1,9 @@
 use log::info;
 use rabbitmq_async_example::{
     configs::PROJECT_CONFIG,
-    database::{check_connection, get_connection_pool},
+    database::check_connection,
     errors::CustomProjectErrors,
-    rmq::builder::RmqConnectionBuilder,
+    rmq::builder::ConnectionBuilder,
     rmq::schemas::{Exchange, Queue},
     tasks::consumer::methods::{
         on_client_message, on_fail_message, on_service_message, on_timeout_message,
@@ -14,27 +14,24 @@ use rabbitmq_async_example::{
 async fn main() -> Result<(), CustomProjectErrors> {
     dotenvy::dotenv().ok();
     env_logger::init();
-    info!("--- All env values are set");
-    info!("--- Checking connection");
-    check_connection(&PROJECT_CONFIG.get_postgres_url())
-        .await
-        .map_err(|_| CustomProjectErrors::DatabaseHealthCheckError)?;
-    let pool = get_connection_pool(
-        &PROJECT_CONFIG.get_postgres_url(),
-        PROJECT_CONFIG.postgres_pool_size,
-    )
-    .await
-    .map_err(|e| CustomProjectErrors::DatabaseConnectionError(e.to_string()))?;
-    info!("--- Database connection established!");
-    let rmq_connection = RmqConnectionBuilder::new()
+
+    info!("---- All env values are set ----\n ---- Checking connection ----");
+
+    check_connection(&PROJECT_CONFIG.get_postgres_url()).await?;
+
+    info!("---- Database connection established! ----");
+
+    let rmq_builder = ConnectionBuilder::new()
         .with_rmq_url(PROJECT_CONFIG.get_rmq_url())
-        .with_sql_pool(pool)
+        .with_sql_pool(
+            PROJECT_CONFIG.get_postgres_url(),
+            PROJECT_CONFIG.postgres_pool_size,
+        )
         .build()
-        .await
-        .map_err(|e| CustomProjectErrors::RMQConnectionError(e.to_string()))?;
+        .await?;
 
     let _ = tokio::join!(
-        rmq_connection.start_consumer(
+        rmq_builder.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.rmq_exchange,
                 &PROJECT_CONFIG.rmq_exchange_type,
@@ -46,7 +43,7 @@ async fn main() -> Result<(), CustomProjectErrors> {
             on_client_message,
             "on_client_message",
         ),
-        rmq_connection.start_consumer(
+        rmq_builder.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.rmq_exchange,
                 &PROJECT_CONFIG.rmq_exchange_type
@@ -58,7 +55,7 @@ async fn main() -> Result<(), CustomProjectErrors> {
             on_service_message,
             "on_service_message"
         ),
-        rmq_connection.start_consumer(
+        rmq_builder.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.rmq_exchange,
                 &PROJECT_CONFIG.rmq_exchange_type
@@ -70,7 +67,7 @@ async fn main() -> Result<(), CustomProjectErrors> {
             on_fail_message,
             "on_fail_message"
         ),
-        rmq_connection.start_consumer(
+        rmq_builder.start_consumer(
             Exchange::new(
                 &PROJECT_CONFIG.rmq_exchange,
                 &PROJECT_CONFIG.rmq_exchange_type
