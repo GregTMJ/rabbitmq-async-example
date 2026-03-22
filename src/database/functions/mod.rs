@@ -32,7 +32,7 @@ pub async fn save_client_request(
 ) -> Result<bool, CustomProjectErrors> {
     let request_data = ApplicationRequests::try_from(request)?;
     let request_query = sqlx::query(
-        "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data) 
+        "INSERT INTO application_requests (application_id, serhub_request_id, system_id, service_id, application_data)
             VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(request_data.application_id)
@@ -58,7 +58,7 @@ pub async fn save_service_response(
 ) -> Result<bool, CustomProjectErrors> {
     let response_to_save = ApplicationResponses::try_from(service_response)?;
     let result_query = sqlx::query(
-    "INSERT INTO application_responses 
+    "INSERT INTO application_responses
     (application_id, serhub_request_id, system_id, service_id, is_cache, status, status_description, response, target)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
     .bind(response_to_save.application_id)
@@ -88,7 +88,7 @@ pub async fn save_to_fail_table(
 ) -> Result<bool, CustomProjectErrors> {
     let sql_mapped_error = FailTable::try_from(mapped_error)?;
     let result_query = sqlx::query(
-        "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at) 
+        "INSERT INTO fail_table (application_id, serhub_request_id, system_id, service_id, error_type, error_message, error_traceback, data, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",)
         .bind(sql_mapped_error.application_id)
         .bind(sql_mapped_error.serhub_request_id)

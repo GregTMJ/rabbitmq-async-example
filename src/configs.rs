@@ -94,7 +94,7 @@ impl Config {
             .split(",")
             .filter(|val| !val.is_empty())
             .map(str::trim)
-            .map(|val| val.parse::<i32>().unwrap())
+            .filter_map(|val| val.parse::<i32>().ok())
             .collect()
     }
 
@@ -103,7 +103,7 @@ impl Config {
             .split(",")
             .filter(|val| !val.is_empty())
             .map(str::trim)
-            .map(|val| val.parse::<i32>().unwrap())
+            .filter_map(|val| val.parse::<i32>().ok())
             .collect()
     }
 }

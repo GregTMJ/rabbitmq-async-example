@@ -6,26 +6,32 @@ use lapin::Channel;
 use lapin::options::BasicPublishOptions;
 use lapin::protocol::basic::AMQPProperties;
 use lapin::types::ShortString;
-use log::info;
-use std::rc::Rc;
+use log::{info, warn};
 
 pub async fn send_message_to_service(
     channel: &Channel,
     request: &Request,
-    reply_to: Rc<ShortString>,
-    correlation_id: Rc<ShortString>,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let service_info = &request.service_info;
     let expiration = {
         let timestamp_now = service_info.timestamp_received;
-        let service_timeout = service_info.service_timeout as f32;
-        let current_timestamp = chrono::Local::now().timestamp() as f32;
-        (timestamp_now + service_timeout - current_timestamp) * 1000_f32
+        let service_timeout = service_info.service_timeout as f64;
+        let current_timestamp = chrono::Local::now().timestamp() as f64;
+        ((timestamp_now + service_timeout - current_timestamp) * 1000.0).max(0.0)
     };
+    if expiration == 0.0 {
+        warn!(
+            "Message won't be handled for ttl reasons for {}",
+            service_info.serhub_request_id
+        );
+        return Ok(());
+    }
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id.as_str().into())
-        .with_reply_to(reply_to.as_str().into())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into());
 
     let exchange =
@@ -59,16 +65,16 @@ pub async fn send_message_to_service(
 pub async fn send_message_to_client(
     channel: &Channel,
     service_response: &ServiceResponse,
-    reply_to: Rc<ShortString>,
-    correlation_id: Rc<ShortString>,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     info!("Producing response to client");
     let expiration = 60 * 1000;
     let target_info = &service_response.target;
     let amq_properties = AMQPProperties::default()
         .with_content_type("application/json".into())
-        .with_correlation_id(correlation_id.as_str().into())
-        .with_reply_to(reply_to.as_str().into())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_expiration(expiration.to_string().into())
         .with_app_id(ShortString::from(
             service_response.application_id.to_owned(),

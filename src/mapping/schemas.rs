@@ -55,7 +55,7 @@ pub struct BaseService {
 #[derive(Serialize, Deserialize, Debug, Default, RMQDeserializer)]
 #[serde(default)]
 pub struct IncomingServiceInfo {
-    pub timestamp_received: f32,
+    pub timestamp_received: f64,
     pub service_timeout: Option<u16>,
     pub serhub_request_id: String,
     pub cached_fields: String,
@@ -68,7 +68,7 @@ impl TryFrom<&Services> for IncomingServiceInfo {
     type Error = CustomProjectErrors;
     fn try_from(value: &Services) -> Result<Self, CustomProjectErrors> {
         Ok(Self {
-            timestamp_received: Local::now().timestamp() as f32,
+            timestamp_received: Local::now().timestamp() as f64,
             service_timeout: Some(value.timeout as u16),
             serhub_request_id: Uuid::new_v4().to_string(),
             cached_fields: value.cache_fields.clone(),
@@ -81,7 +81,7 @@ impl TryFrom<&Services> for IncomingServiceInfo {
 
 #[derive(Debug, Deserialize, Serialize, Validate, RMQDeserializer)]
 pub struct ServiceInfo {
-    pub timestamp_received: f32,
+    pub timestamp_received: f64,
     pub service_timeout: u16,
     pub serhub_request_id: String,
     pub cache_fields: Vec<String>,

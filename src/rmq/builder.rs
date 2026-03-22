@@ -68,12 +68,6 @@ impl ConnectionBuilder {
         let rmq_connection = self.build_rmq_connection().await?;
         info!("---- RMQ Connection established ----");
 
-        info!("---- Opening channel ----");
-        let channel = rmq_connection.create_channel().await.map_err(|msg| {
-            CustomProjectErrors::RMQChannelCreationError(msg.to_string())
-        })?;
-        info!("---- RMQ channel ready to handle ----");
-
-        Ok(RmqConnection::new(channel, sql_connection_pool))
+        Ok(RmqConnection::new(rmq_connection, sql_connection_pool))
     }
 }

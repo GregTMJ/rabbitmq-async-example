@@ -13,7 +13,6 @@ use lapin::{
 };
 use log::info;
 use sqlx::{Pool, Postgres};
-use std::rc::Rc;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -57,8 +56,8 @@ pub async fn get_request(
     send_message_to_client(
         channel,
         &service_response,
-        Rc::new(amq_properties.correlation_id().clone().unwrap_or_default()),
-        Rc::new(amq_properties.reply_to().clone().unwrap_or_default()),
+        amq_properties.reply_to().clone().unwrap_or_default(),
+        amq_properties.correlation_id().clone().unwrap_or_default(),
     )
     .await?;
     Err(CustomProjectErrors::ValidationError(
@@ -159,8 +158,8 @@ pub async fn send_timeout_error_service(
 pub async fn send_delayed_message(
     request: &Request,
     channel: &Channel,
-    reply_to: Rc<ShortString>,
-    correlation_id: Rc<ShortString>,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let timeout_exchange: Exchange = Exchange::new(
         &PROJECT_CONFIG.rmq_delayed_exchange,
@@ -177,8 +176,8 @@ pub async fn send_delayed_message(
         temp_header
     };
     let properties = AMQPProperties::default()
-        .with_correlation_id(correlation_id.as_str().into())
-        .with_reply_to(reply_to.as_str().into())
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to)
         .with_headers(headers);
     send_message(
         channel,
@@ -196,8 +195,8 @@ pub async fn send_publish_error_message(
     error_message: &str,
     channel: &Channel,
     connection: &Pool<Postgres>,
-    reply_to: Rc<ShortString>,
-    correlation_id: Rc<ShortString>,
+    reply_to: ShortString,
+    correlation_id: ShortString,
 ) -> Result<(), CustomProjectErrors> {
     let service_error_response = ServiceResponse::generate_response(
         request,
@@ -211,8 +210,8 @@ pub async fn send_publish_error_message(
     );
     save_response_with_request(request, connection).await?;
     let properties = AMQPProperties::default()
-        .with_correlation_id(correlation_id.as_str().into())
-        .with_reply_to(reply_to.as_str().into());
+        .with_correlation_id(correlation_id)
+        .with_reply_to(reply_to);
     send_message(
         channel,
         service_error_response.to_json()?.as_bytes(),
